@@ -122,17 +122,12 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 });
 
 $discord->listenCommand('afk', function (Interaction $interaction) {
-	global $guild;
-
 	$member = $interaction->member;
-	$hasRole = $member->roles->get("id", ROLE_AFK);
+	$hasRole = $member->roles->get("id", ROLE_AFK); // Check if the member has the role or not
 
-	if(!$hasRole) $member->addRole(ROLE_AFK); else $member->removeRole(ROLE_AFK);
-	$member->moveMember(NULL);
+	if(!$hasRole) $member->addRole(ROLE_AFK); else $member->removeRole(ROLE_AFK); // Add or Remove Role accordingly
 
-	
-	$channel = $guild->channels->get("id", CHANNEL_MAIN);
-	$channel->sendMessage($member . ($hasRole ? _U("afk", "not_afk") : _U("afk", "afk")));
+	$member->moveMember(NULL); // Remove member from Voice Channels
 
 	$interaction->respondWithMessage(MessageBuilder::new()->setContent($hasRole ? _U("afk", "me_not_afk") : _U("afk", "me_afk")), true);
 });
