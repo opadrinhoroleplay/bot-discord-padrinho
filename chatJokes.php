@@ -10,5 +10,5 @@ $jokes = [
     "Não venhas com merdas caralho"
 ];
 
-if(array_search($string, $triggers))
+if(array_search($message->content, $triggers))
     $message->reply($jokes[rand(0, count($jokes)-1)] . "...");
