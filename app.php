@@ -1,6 +1,7 @@
 <?php
 include "vendor/autoload.php";
 include "language.php";
+include "PlayTracker.class.php";
 
 define("GUILD_ID", 519268261372755968);
 define("CHANNEL_MAIN", 960555224056086548); 
@@ -25,7 +26,7 @@ use Discord\WebSockets\Intents;
 print("Starting Padrinho\n\n");
 
 $guild = (object) NULL;
-$afkRole = NULL;
+$tracker = new GameTracker();
 
 $discord = new Discord([
     'token' => $_ENV['TOKEN'],
@@ -52,34 +53,6 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 
 	echo "{$message->author->username}: {$message->content}", PHP_EOL;
 });
-
-class GameTracker
-{
-	private array $playing = [];
-
-	function set($player, $game, $state) {
-		$playerGame      = @$this->playing[$player]["game"];
-		$playerGameState = @$this->playing[$player]["state"];
-
-		if($playerGame != $game & $playerGame != $state) {
-			$this->playing[$player]["game"]  = $game;
-			$this->playing[$player]["state"] = $state;
-			return true;
-		}
-		elseif($playerGameState != $state) {
-			$this->playing[$player]["state"] = $state;
-			return true;
-		}
-		
-		return false;
-	}
-
-	function get($player) {
-		return $this->playing[$player] ? (object) $this->playing[$player] : NULL;
-	}
-}
-
-$tracker = new GameTracker();
 
 $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord $discord) {
 	global $tracker;
