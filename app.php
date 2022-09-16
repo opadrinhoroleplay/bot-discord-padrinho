@@ -1,5 +1,5 @@
 <?php
-include "/vendor/autoload.php";
+include "vendor/autoload.php";
 include "language.php";
 
 define("GUILD_ID", 519268261372755968);
