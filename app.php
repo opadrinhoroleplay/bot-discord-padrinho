@@ -1,12 +1,13 @@
 <?php
-include __DIR__ . '/vendor/autoload.php';
+include "/vendor/autoload.php";
 include "language.php";
 
-define("GUILD_ID", 		519268261372755968);
-define("CHANNEL_MAIN", 	960555224056086548); 
-define("ROLE_AFK", 		1020313717805699185);
-define("ROLE_INGAME", 	1020385919695585311);
-define("SERVER_NAME", 	"VIRUXE's Sandbox");
+define("GUILD_ID", 519268261372755968);
+define("CHANNEL_MAIN", 960555224056086548); 
+define("CHANNEL_PLAYING", 1019768367604838460); 
+define("ROLE_AFK", 1020313717805699185);
+define("ROLE_INGAME", 1020385919695585311);
+define("SERVER_NAME", "VIRUXE's Sandbox");
 
 $env = Dotenv\Dotenv::createImmutable(__DIR__);
 $env->load();
@@ -15,15 +16,13 @@ $env->required('TOKEN');
 use Discord\Builders\MessageBuilder;
 use Discord\Discord;
 use Discord\Parts\Channel\Message;
-use Discord\Parts\Interactions\Command\Command;
 use Discord\Parts\Interactions\Interaction;
-use Discord\parts\User;
 use Discord\Parts\User\Activity;
 use Discord\Parts\WebSockets\PresenceUpdate;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 
-print("Starting Padrinho\n");
+print("Starting Padrinho\n\n");
 
 $guild = (object) NULL;
 $afkRole = NULL;
@@ -35,17 +34,13 @@ $discord = new Discord([
 ]);
 
 $discord->on('ready', function (Discord $discord) {
-	global $guild, $afkRole;
+	global $guild;
 
     echo "Bot is ready!", PHP_EOL;
 
 	$guild = $discord->guilds->get("id", GUILD_ID);
-	// $afkRole = $guild->roles->get('id', ROLE_AFK);
 
-	// Setup Slash Commands
-	// AFK
-	/* $guildCommand = new Command($discord, ['name' => 'afk', 'description' => 'Ativa ou Desativa o teu Modo de AFK aqui no Servidor de Discord.']);
-	$guild->commands->save($guildCommand); */
+	// include "registerCommands.php";
 });
 
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) {
@@ -75,7 +70,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 
 class GameTracker
 {
-	public array $playing = [];
+	private array $playing = [];
 
 	function set($player, $game, $state) {
 		$playerGame      = @$this->playing[$player]["game"];
@@ -102,10 +97,9 @@ class GameTracker
 $tracker = new GameTracker();
 
 $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord $discord) {
-	// var_dump($presence->status);
 	global $tracker;
 
-	$channel = $presence->guild->channels->get("name", "playing");
+	$channel = $presence->guild->channels->get("id", CHANNEL_PLAYING);
 	$game    = $presence->activities->filter(fn ($activity) => $activity->type == Activity::TYPE_PLAYING)->first();
 	$member  = $presence->member;
 	
@@ -113,10 +107,7 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	if(!$tracker->set($member->username, $game?->name, $game?->state)) return;
 
 	// Apply Ingame Role if inside Gameserver
-	if($game?->name == SERVER_NAME || $game?->state == SERVER_NAME)
-		$member->addRole(ROLE_INGAME);
-	else
-		$member->removeRole(ROLE_INGAME);
+	if($game?->name == SERVER_NAME || $game?->state == SERVER_NAME) $member->addRole(ROLE_INGAME); else $member->removeRole(ROLE_INGAME);
 
 	$channel->sendMessage("**{$member->username}** " . ($game ? _U("game","playing", $game->name, $game->state) : _U("game", "not_playing")));
 });
