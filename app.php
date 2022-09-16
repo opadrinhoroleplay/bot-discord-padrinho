@@ -44,26 +44,11 @@ $discord->on('ready', function (Discord $discord) {
 });
 
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) {
-	global $guild;
+	if ($message->author->bot) return; // Ignore bots bullshit
 
-	if ($message->author->bot) return; // Ignore bots
+	if($message->member->roles->get("id", ROLE_AFK)) $message->member->removeRole(ROLE_AFK);
 
-	if($message->member->roles->get("id", ROLE_AFK)) {
-		$message->member->removeRole(ROLE_AFK);
-		$channel = $guild->channels->get("id", CHANNEL_MAIN);
-		$channel->sendMessage("$message->member não está mais AFK.");
-	}
-
-	if (str_contains($message->content, 'gay')) {
-		$jokes = [
-			"Deves querer festa fdp",
-			"Até a puta da barraca abana",
-			"Cuidadinho com a letra",
-			"Não venhas com merdas caralho"
-		];
-
-		$message->reply($jokes[rand(0, count($jokes)-1)] . "...");
-	}
+	include "chatJokes.php";
 
 	echo "{$message->author->username}: {$message->content}", PHP_EOL;
 });
