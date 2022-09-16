@@ -1,10 +1,12 @@
 <?php
 include __DIR__ . '/vendor/autoload.php';
+include "language.php";
 
-define("GUILD_ID", 519268261372755968);
-define("CHANNEL_MAIN", 960555224056086548); 
-define("ROLE_AFK", 1020313717805699185);
-define("SERVER_NAME", "VIRUXE's Sandbox");
+define("GUILD_ID", 		519268261372755968);
+define("CHANNEL_MAIN", 	960555224056086548); 
+define("ROLE_AFK", 		1020313717805699185);
+define("ROLE_INGAME", 	1020385919695585311);
+define("SERVER_NAME", 	"VIRUXE's Sandbox");
 
 $env = Dotenv\Dotenv::createImmutable(__DIR__);
 $env->load();
@@ -41,6 +43,7 @@ $discord->on('ready', function (Discord $discord) {
 	// $afkRole = $guild->roles->get('id', ROLE_AFK);
 
 	// Setup Slash Commands
+	// AFK
 	/* $guildCommand = new Command($discord, ['name' => 'afk', 'description' => 'Ativa ou Desativa o teu Modo de AFK aqui no Servidor de Discord.']);
 	$guild->commands->save($guildCommand); */
 });
@@ -99,37 +102,39 @@ class GameTracker
 $tracker = new GameTracker();
 
 $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord $discord) {
+	// var_dump($presence->status);
 	global $tracker;
 
 	$channel = $presence->guild->channels->get("name", "playing");
 	$game    = $presence->activities->filter(fn ($activity) => $activity->type == Activity::TYPE_PLAYING)->first();
-	$member  = $presence->user->username;
+	$member  = $presence->member;
 	
-	if(!$tracker->set($member, @$game->name, @$game->state)) return;
-
-	$channel->sendMessage("**{$member}** " . ($game ?  "está agora a jogar **$game->name** (**$game->state**)" : "parou de jogar."));
+	// Check if this activity is actually different than what we've got saved already
+	if(!$tracker->set($member->username, $game?->name, $game?->state)) return;
 
 	// Apply Ingame Role if inside Gameserver
-	if($game->name == SERVER_NAME|| $game->state == SERVER_NAME) {
-		echo "GAMESERVER";
-	}
-	// elseif($tracker->get($member)->)
+	if($game?->name == SERVER_NAME || $game?->state == SERVER_NAME)
+		$member->addRole(ROLE_INGAME);
+	else
+		$member->removeRole(ROLE_INGAME);
+
+	$channel->sendMessage("**{$member->username}** " . ($game ? _U("game","playing", $game->name, $game->state) : _U("game", "not_playing")));
 });
 
 $discord->listenCommand('afk', function (Interaction $interaction) {
 	global $guild;
 
 	$member = $interaction->member;
-	$hasAFKRole = $member->roles->get("id", ROLE_AFK);
+	$hasRole = $member->roles->get("id", ROLE_AFK);
 
-	if(!$hasAFKRole) $member->addRole(ROLE_AFK); else $member->removeRole(ROLE_AFK);
+	if(!$hasRole) $member->addRole(ROLE_AFK); else $member->removeRole(ROLE_AFK);
 	$member->moveMember(NULL);
 
 	
 	$channel = $guild->channels->get("id", CHANNEL_MAIN);
-	$channel->sendMessage($member . ($hasAFKRole ? " não está mais AFK." : " ficou agora AFK."));
+	$channel->sendMessage($member . ($hasRole ? _U("afk", "not_afk") : _U("afk", "afk")));
 
-	$interaction->respondWithMessage(MessageBuilder::new()->setContent($hasAFKRole ? "Não estás mais como AFK." : "Entraste agora como AFK."), true);
+	$interaction->respondWithMessage(MessageBuilder::new()->setContent($hasRole ? _U("afk", "me_not_afk") : _U("afk", "me_afk")), true);
 });
 
 $discord->run();

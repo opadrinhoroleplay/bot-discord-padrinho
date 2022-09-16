@@ -1,0 +1,12 @@
+{    
+    "AFK": {
+        "AFK": " ficou agora AFK.",
+        "NOT_AFK": " não está mais AFK.",
+        "ME_AFK": "Entraste agora como AFK.",
+        "ME_NOT_AFK": "Não estás mais como AFK."
+    },
+    "GAME": {
+        "PLAYING": "está agora a jogar **%s** (**%s**)",
+        "NOT_PLAYING": "parou de jogar."
+    }
+}
