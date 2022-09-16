@@ -78,7 +78,7 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 
 	$member->moveMember(NULL); // Remove member from Voice Channels
 
-	$interaction->respondWithMessage(MessageBuilder::new()->setContent($hasRole ? _U("afk", "me_not_afk") : _U("afk", "me_afk")), true);
+	$interaction->respondWithMessage(MessageBuilder::new()->setContent($hasRole ? _U("afk", "self_not_afk") : _U("afk", "self_afk")), true);
 });
 
 $discord->run();
