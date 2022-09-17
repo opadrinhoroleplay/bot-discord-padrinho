@@ -5,9 +5,12 @@ include "PlayTracker.class.php";
 
 define("GUILD_ID", 519268261372755968);
 define("CHANNEL_MAIN", 960555224056086548); 
-define("CHANNEL_PLAYING", 1019768367604838460); 
+define("CHANNEL_LOG_PLAYING", 1019768367604838460); 
+define("CHANNEL_LOG_VOICE", 1020683057835020358); 
+define("CHANNEL_VOICE_MAIN", 960557917784920104); 
+define("CHANNEL_VOICE_PLAYING", 1019237971217612840); 
 define("ROLE_AFK", 1020313717805699185);
-define("ROLE_INGAME", 1020385919695585311);
+define("ROLE_PLAYING", 1020385919695585311);
 define("SERVER_NAME", "VIRUXE's Sandbox");
 
 $env = Dotenv\Dotenv::createImmutable(__DIR__);
@@ -20,6 +23,7 @@ use Discord\Parts\Channel\Message;
 use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\User\Activity;
 use Discord\Parts\WebSockets\PresenceUpdate;
+use Discord\Parts\WebSockets\VoiceStateUpdate;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 
@@ -57,7 +61,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord $discord) {
 	global $tracker;
 
-	$channel = $presence->guild->channels->get("id", CHANNEL_PLAYING);
+	$channel = $presence->guild->channels->get("id", CHANNEL_LOG_PLAYING);
 	$game    = $presence->activities->filter(fn ($activity) => $activity->type == Activity::TYPE_PLAYING)->first();
 	$member  = $presence->member;
 
@@ -70,7 +74,13 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	if(!$tracker->set($member->username, $game?->name, $game?->state)) return;
 
 	// Apply Ingame Role if inside Gameserver
-	if($game?->name == SERVER_NAME || $game?->state == SERVER_NAME) $member->addRole(ROLE_INGAME); else $member->removeRole(ROLE_INGAME);
+	if($game?->name == SERVER_NAME || $game?->state == SERVER_NAME) {
+		$member->addRole(ROLE_PLAYING);
+		$member->moveMember(CHANNEL_VOICE_PLAYING);
+	} else {
+		$member->removeRole(ROLE_PLAYING);
+		$member->moveMember(CHANNEL_VOICE_MAIN);
+	}
 
 	$channel->sendMessage("**{$member->username}** " . ($game ? _U("game","playing", $game->name, $game->state) : _U("game", "not_playing")));
 });
@@ -84,6 +94,15 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 	$member->moveMember(NULL); // Remove member from Voice Channels
 
 	$interaction->respondWithMessage(MessageBuilder::new()->setContent($hasRole ? _U("afk", "self_not_afk") : _U("afk", "self_afk")), true);
+});
+
+$discord->on(Event::VOICE_STATE_UPDATE, function(VoiceStateUpdate $voiceState, Discord $discord, $oldState) {
+	$member = $voiceState->member;
+
+	if($member->roles->get("id", ROLE_PLAYING) && $voiceState->channel_id == CHANNEL_VOICE_MAIN)
+		$member->moveMember(CHANNEL_VOICE_PLAYING);
+
+	// var_dump($voiceState);
 });
 
 $discord->run();
