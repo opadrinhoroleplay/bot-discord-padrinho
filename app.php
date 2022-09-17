@@ -60,6 +60,11 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	$channel = $presence->guild->channels->get("id", CHANNEL_PLAYING);
 	$game    = $presence->activities->filter(fn ($activity) => $activity->type == Activity::TYPE_PLAYING)->first();
 	$member  = $presence->member;
+
+	if($member->status == "idle")
+		$member->addRole(ROLE_AFK);
+	elseif($member->status == "online")
+		$member->removeRole(ROLE_AFK);
 	
 	// Check if this activity is actually different than what we've got saved already
 	if(!$tracker->set($member->username, $game?->name, $game?->state)) return;
