@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "827dc34070cc714258af8a8eecfa04b9",
+    "content-hash": "57dbc802a2e8d9ad7588d78c9530be4b",
     "packages": [
         {
             "name": "chillerlan/php-dotenv",
@@ -1168,16 +1168,16 @@
         },
         {
             "name": "react/child-process",
-            "version": "v0.6.4",
+            "version": "v0.6.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/reactphp/child-process.git",
-                "reference": "a778f3fb828d68caf8a9ab6567fd8342a86f12fe"
+                "reference": "e71eb1aa55f057c7a4a0d08d06b0b0a484bead43"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/reactphp/child-process/zipball/a778f3fb828d68caf8a9ab6567fd8342a86f12fe",
-                "reference": "a778f3fb828d68caf8a9ab6567fd8342a86f12fe",
+                "url": "https://api.github.com/repos/reactphp/child-process/zipball/e71eb1aa55f057c7a4a0d08d06b0b0a484bead43",
+                "reference": "e71eb1aa55f057c7a4a0d08d06b0b0a484bead43",
                 "shasum": ""
             },
             "require": {
@@ -1231,7 +1231,7 @@
             ],
             "support": {
                 "issues": "https://github.com/reactphp/child-process/issues",
-                "source": "https://github.com/reactphp/child-process/tree/v0.6.4"
+                "source": "https://github.com/reactphp/child-process/tree/v0.6.5"
             },
             "funding": [
                 {
@@ -1243,7 +1243,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2021-10-12T10:37:07+00:00"
+            "time": "2022-09-16T13:41:56+00:00"
         },
         {
             "name": "react/datagram",
@@ -2628,16 +2628,16 @@
         },
         {
             "name": "team-reflex/discord-php",
-            "version": "v7.3.0",
+            "version": "v7.x-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/discord-php/DiscordPHP.git",
-                "reference": "85b64937c97a1f10df6471fa351be1dc0e32d288"
+                "reference": "ce5098d5327dfcefc75daa26c1f7a2d99659a79d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/85b64937c97a1f10df6471fa351be1dc0e32d288",
-                "reference": "85b64937c97a1f10df6471fa351be1dc0e32d288",
+                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/ce5098d5327dfcefc75daa26c1f7a2d99659a79d",
+                "reference": "ce5098d5327dfcefc75daa26c1f7a2d99659a79d",
                 "shasum": ""
             },
             "require": {
@@ -2693,9 +2693,9 @@
             "description": "An unofficial API to interact with the voice and text service Discord.",
             "support": {
                 "issues": "https://github.com/discord-php/DiscordPHP/issues",
-                "source": "https://github.com/discord-php/DiscordPHP/tree/v7.3.0"
+                "source": "https://github.com/discord-php/DiscordPHP/tree/v7"
             },
-            "time": "2022-09-02T10:07:56+00:00"
+            "time": "2022-09-18T14:11:42+00:00"
         },
         {
             "name": "trafficcophp/bytebuffer",
@@ -2829,7 +2829,9 @@
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "team-reflex/discord-php": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": [],
