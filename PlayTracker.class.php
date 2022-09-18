@@ -4,8 +4,11 @@ class GameTracker
 	private array $playing = [];
 
 	function set($player, $game, $state) {
+		if(str_contains($state, "players")) return false;
+
 		$playerGame      = @$this->playing[$player]["game"];
 		$playerGameState = @$this->playing[$player]["state"];
+		// $stateDiff		 = strcmp($state, $playerGameState);
 
 		if($playerGame != $game & $playerGame != $state) {
 			$this->playing[$player]["game"]  = $game;
