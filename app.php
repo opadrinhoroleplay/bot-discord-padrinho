@@ -73,11 +73,10 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	if($member->status == "idle" && !$isAFK) {
 		$member->addRole(ROLE_AFK);
 		if($member->getVoiceChannel()) $member->moveMember(CHANNEL_VOICE_MAIN, "Stopped playing.");
-		if($isAdmin) $adminChannel->sendMessage($member . " ficou agora AFK");
 	}
 	elseif($member->status == "online" && $isAFK) {
 		$member->removeRole(ROLE_AFK);
-		if($isAdmin) $adminChannel->sendMessage($member . " não está mais AFK.");
+		// if($isAdmin) $adminChannel->sendMessage($member . " não está mais AFK.");
 	}
 	
 	// Check if this activity is actually different than what we've got saved already
