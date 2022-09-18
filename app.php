@@ -64,6 +64,7 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	$channel = $presence->guild->channels->get("id", CHANNEL_LOG_PLAYING);
 	$game    = $presence->activities->filter(fn ($activity) => $activity->type == Activity::TYPE_PLAYING)->first();
 	$member  = $presence->member;
+	
 
 	if($member->status == "idle")
 		$member->addRole(ROLE_AFK);
@@ -76,10 +77,12 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	// Apply Ingame Role if inside Gameserver
 	if($game?->name == SERVER_NAME || $game?->state == SERVER_NAME) {
 		$member->addRole(ROLE_PLAYING);
-		$member->moveMember(CHANNEL_VOICE_PLAYING);
+		// Move player if he is inside a voice channel
+		if($member->getVoiceChannel()) $member->moveMember(CHANNEL_VOICE_PLAYING, "Started playing.");
 	} else {
 		$member->removeRole(ROLE_PLAYING);
-		$member->moveMember(CHANNEL_VOICE_MAIN);
+		// Move player if he is inside a voice channel
+		if($member->getVoiceChannel()) $member->moveMember(CHANNEL_VOICE_MAIN, "Stopped playing.");
 	}
 
 	$channel->sendMessage("**{$member->username}** " . ($game ? _U("game","playing", $game->name, $game->state) : _U("game", "not_playing")));
