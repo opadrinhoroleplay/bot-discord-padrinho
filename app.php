@@ -53,7 +53,9 @@ $discord->on('ready', function (Discord $discord) {
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) {
 	if ($message->author->bot) return; // Ignore bots bullshit
 
-	if($message->member->roles->get("id", ROLE_AFK)) $message->member->removeRole(ROLE_AFK);
+	if($message->member->roles->get("id", ROLE_AFK)) {
+		$message->member->removeRole(ROLE_AFK);
+	}
 
 	include "chatJokes.php";
 
@@ -72,42 +74,43 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 
 	if($member->status == "idle" && !$isAFK) {
 		$member->addRole(ROLE_AFK);
-		if($member->getVoiceChannel()) $member->moveMember(CHANNEL_VOICE_MAIN, "Stopped playing.");
-	}
-	elseif($member->status == "online" && $isAFK) {
-		$member->removeRole(ROLE_AFK);
-		// if($isAdmin) $adminChannel->sendMessage($member . " não está mais AFK.");
+		if($member->getVoiceChannel()) $member->moveMember(NULL);
 	}
 	
-	// Check if this activity is actually different than what we've got saved already
+	// Check if this activity is actually different than what we've got saved already, if so then save
 	if(!$tracker->set($member->username, $game?->name, $game?->state)) return;
 
 	// Apply Ingame Role if inside Gameserver
 	if($game?->name == SERVER_NAME || $game?->state == SERVER_NAME) {
 		$member->addRole(ROLE_PLAYING);
 		// Move player if he is inside a voice channel
-		if($member->getVoiceChannel()) $member->moveMember(CHANNEL_VOICE_PLAYING, "Started playing.");
+		if($member->getVoiceChannel()) $member->moveMember(CHANNEL_VOICE_PLAYING);
 	} else {
 		$member->removeRole(ROLE_PLAYING);
 		// Move player if he is inside a voice channel
-		if($member->getVoiceChannel()) $member->moveMember(CHANNEL_VOICE_MAIN, "Stopped playing.");
+		if($member->getVoiceChannel() && !$isAdmin) $member->moveMember(CHANNEL_VOICE_MAIN);
 	}
 
 	$logChannel->sendMessage("**{$member->username}** " . ($game ? _U("game","playing", $game->name, $game->state) : _U("game", "not_playing")));
 });
 
 $discord->listenCommand('afk', function (Interaction $interaction) {
+	$mainChannel  = $interaction->guild->channels->get("id", CHANNEL_MAIN);
 	$adminChannel = $interaction->guild->channels->get("id", CHANNEL_ADMIN);
 	$member       = $interaction->member;
-	$isAFK        = $member->roles->get("id", ROLE_AFK);                      // Check if the member has the role or not
+	$isAFK        = $member->roles->get("id", ROLE_AFK); // Check if the member has the role or not
 	$isAdmin      = $member->roles->get("id", ROLE_ADMIN);
 
 	if(!$isAFK) {
-		$member->addRole(ROLE_AFK); 
-		if($isAdmin) $adminChannel->sendMessage($member . " ficou agora AFK");
+		$message = $member . " ficou agora AFK";
+		$member->addRole(ROLE_AFK);
+		$mainChannel->sendMessage($message);
+		if($isAdmin) $adminChannel->sendMessage($message);
 	} else {
+		$message = $member . " não está mais AFK.";
 		$member->removeRole(ROLE_AFK); // Add or Remove Role accordingly
-		if($isAdmin) $adminChannel->sendMessage($member . " não está mais AFK.");
+		$mainChannel->sendMessage($message);
+		if($isAdmin) $adminChannel->sendMessage($message);
 	}
 
 	$member->moveMember(NULL); // Remove member from Voice Channels
