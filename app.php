@@ -100,7 +100,7 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 		if($member->getVoiceChannel() && !$isAdmin) $member->moveMember(CHANNEL_VOICE_MAIN, "Stopped playing.");
 	}
 
-	$logChannel->sendMessage("**{$member->username}** " . ($game ? _U("game","playing", $game->name, $game->state) : _U("game", "not_playing")));
+	$logChannel->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game","playing", $game->name, $game->state) : " está agora a jogar **$game->name**") : _U("game", "not_playing")));
 });
 
 $discord->listenCommand('afk', function (Interaction $interaction) {
