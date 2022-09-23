@@ -113,6 +113,7 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 	if(!$isAFK) {
 		$message = $member . " ficou agora AFK";
 		$member->addRole(ROLE_AFK);
+		$member->moveMember(NULL); // Remove member from Voice Channels
 		$mainChannel->sendMessage($message);
 		if($isAdmin) $adminChannel->sendMessage($message);
 	} else {
@@ -122,21 +123,16 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 		if($isAdmin) $adminChannel->sendMessage($message);
 	}
 
-	$member->moveMember(NULL); // Remove member from Voice Channels
-
 	$interaction->respondWithMessage(MessageBuilder::new()->setContent($isAFK ? _U("afk", "self_not_afk") : _U("afk", "self_afk")), true);
 });
 
 $discord->on(Event::VOICE_STATE_UPDATE, function(VoiceStateUpdate $voiceState, Discord $discord, $oldState) {
-	global $guild;
-
 	$member 	= $voiceState->member;
 	$isPlaying 	= $member->roles->get("id", ROLE_PLAYING);
 	$isAdmin 	= $member->roles->get("id", ROLE_ADMIN);
-	$wasPushed	= false;
 
 	// Don't let the player move to the lobby channel, unless he's an admin or was pushed
-	if(!$isAdmin && $isPlaying && $voiceState->channel_id == CHANNEL_VOICE_MAIN && !$wasPushed)
+	if(!$isAdmin && $isPlaying && $voiceState->channel_id == CHANNEL_VOICE_MAIN)
 		$member->moveMember(CHANNEL_VOICE_PLAYING, "Tried switching back to the lobby.");
 });
 
