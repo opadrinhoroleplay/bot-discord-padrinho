@@ -100,7 +100,7 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 		if($member->getVoiceChannel() && !$isAdmin) $member->moveMember(CHANNEL_VOICE_MAIN, "Stopped playing.");
 	}
 
-	$logChannel->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game","playing", $game->name, $game->state) : " está agora a jogar **$game->name**") : _U("game", "not_playing")));
+	$logChannel->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game","playing", $game->name, $game->state) : "está agora a jogar **$game->name**") : _U("game", "not_playing")));
 });
 
 $discord->listenCommand('afk', function (Interaction $interaction) {
@@ -111,13 +111,13 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 	$isAdmin = $member->roles->get("id", ROLE_ADMIN);
 
 	if(!$isAFK) {
-		$message = $member . " ficou agora AFK";
+		$message = "$member ficou agora AFK";
 		$member->addRole(ROLE_AFK);
 		$member->moveMember(NULL); // Remove member from Voice Channels
 		$mainChannel->sendMessage($message);
 		if($isAdmin) $adminChannel->sendMessage($message);
 	} else {
-		$message = $member . " não está mais AFK.";
+		$message = "$member não está mais AFK.";
 		$member->removeRole(ROLE_AFK); // Add or Remove Role accordingly
 		$mainChannel->sendMessage($message);
 		if($isAdmin) $adminChannel->sendMessage($message);
