@@ -101,7 +101,7 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	if (!$tracker->set($member->username, $game?->name, $game?->state)) return;
 
 	SetMemberIsIngame($member, $game?->name == SERVER_NAME || $game?->state == SERVER_NAME ? true : false);
-	
+
 	$channel_log_ingame->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game", "playing", $game->name, $game->state) : "está agora a jogar **$game->name**") : _U("game", "not_playing")));
 });
 
@@ -111,12 +111,7 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 	$member  = $interaction->member;
 	$is_afk   = IsMemberAFK($member);    // Check if the member has the role or not
 
-	if (!$is_afk) {
-		SetMemberAFK($member, true);
-		$member->moveMember(NULL); // Remove member from Voice Channels
-	} else {
-		SetMemberAFK($member, false); // Add or Remove Role accordingly
-	}
+	SetMemberAFK($member, !$is_afk);
 
 	$message = $is_afk ? "$member não está mais AFK." : "$member ficou agora AFK";
 	$channel_main->sendMessage($message);
@@ -154,7 +149,10 @@ function SetMemberAFK(Member $member, bool $toggle): bool
 
 	global $channel_log_afk;
 
-	if ($toggle) $member->addRole(ROLE_AFK, "Ficou AFK.");
+	if ($toggle) {
+		$member->addRole(ROLE_AFK, "Ficou AFK.");
+		$member->moveMember(NULL); // Remove member from Voice Channels
+	}
 	else $member->removeRole(ROLE_AFK, "Voltou de AFK.");
 
 	$channel_log_afk->sendMessage($member->username . ($toggle ? " ficou AFK." : " voltou de AFK."));
