@@ -8,7 +8,10 @@ class GameTracker
 
 		$playerGame      = @$this->playing[$player]["game"];
 		$playerGameState = @$this->playing[$player]["state"];
-		// $stateDiff		 = strcmp($state, $playerGameState);
+
+		$stateDiff		 = strcmp($state, $playerGameState);
+
+		print("\nMember $player | diff: $stateDiff - $playerGameState - $state\n\n");
 
 		if($playerGame != $game & $playerGame != $state) {
 			$this->playing[$player]["game"]  = $game;
