@@ -5,13 +5,14 @@ class GameTracker
 
 	function set($player, $game, $state) {
 		if(str_contains($state, "players")) return false;
-
+		
 		$playerGame      = @$this->playing[$player]["game"];
 		$playerGameState = @$this->playing[$player]["state"];
-
-		$stateDiff		 = strcmp($state, $playerGameState);
-
-		print("\nMember $player | diff: $stateDiff - $playerGameState - $state\n\n");
+		
+		// Check if it's a small change or not
+		$str_diff = strcmp($state, $playerGameState);
+		$str_diff = $str_diff <= 0 ? abs($str_diff) : -$str_diff;
+		if($str_diff < 2) return false;
 
 		if($playerGame != $game & $playerGame != $state) {
 			$this->playing[$player]["game"]  = $game;
