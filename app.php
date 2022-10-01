@@ -4,15 +4,22 @@ include "language.php";
 include "PlayTracker.class.php";
 
 define("GUILD_ID", 519268261372755968);
-define("CHANNEL_MAIN", 960555224056086548); 
-define("CHANNEL_ADMIN", 641102112981385226); 
-define("CHANNEL_LOG_PLAYING", 1019768367604838460); 
-define("CHANNEL_LOG_VOICE", 1020683057835020358); 
-define("CHANNEL_VOICE_MAIN", 960557917784920104); 
-define("CHANNEL_VOICE_PLAYING", 1019237971217612840); 
+
+define("CHANNEL_ADMIN", 641102112981385226);
+define("CHANNEL_MAIN", 960555224056086548);
+
+define("CHANNEL_LOG_AFK", 1020745035169415219);
+define("CHANNEL_LOG_PLAYING", 1019768367604838460);
+define("CHANNEL_LOG_VOICE", 1020683057835020358);
+
+define("CHANNEL_VOICE_ADMIN", 1018817931200700436);
+define("CHANNEL_VOICE_MAIN", 960557917784920104);
+define("CHANNEL_VOICE_PLAYING", 1019237971217612840);
+
 define("ROLE_ADMIN", 929172055977508924);
 define("ROLE_AFK", 1020313717805699185);
-define("ROLE_PLAYING", 1020385919695585311);
+define("ROLE_INGAME", 1020385919695585311);
+
 define("SERVER_NAME", "VIRUXE's Sandbox");
 
 $env = Dotenv\Dotenv::createImmutable(__DIR__);
@@ -21,6 +28,7 @@ $env->required('TOKEN');
 
 use Discord\Builders\MessageBuilder;
 use Discord\Discord;
+use Discord\Parts\User\Member;
 use Discord\Parts\Channel\Channel;
 use Discord\Parts\Channel\Message;
 use Discord\Parts\Interactions\Interaction;
@@ -33,27 +41,31 @@ use Discord\WebSockets\Intents;
 print("Starting Padrinho\n\n");
 
 $guild        = (object) NULL;
-$mainChannel  = (object) NULL;
-$logChannel   = (object) NULL;
-$adminChannel = (object) NULL;
+$channel_main  = (object) NULL;
+$channel_log_ingame   = (object) NULL;
+$channel_admin = (object) NULL;
+$channel_log_voice = (object) NULL;
+$channel_log_afk = (object) NULL;
 
 $tracker      = new GameTracker();
 
 $discord = new Discord([
-    'token'          => $_ENV['TOKEN'],
-    'intents'        => Intents::getDefaultIntents() | Intents::GUILD_MEMBERS | Intents::GUILD_PRESENCES,
-    'loadAllMembers' => false
+	'token'          => $_ENV['TOKEN'],
+	'intents'        => Intents::getDefaultIntents() | Intents::GUILD_MEMBERS | Intents::GUILD_PRESENCES,
+	'loadAllMembers' => false
 ]);
 
 $discord->on('ready', function (Discord $discord) {
-	global $guild, $mainChannel, $adminChannel, $logChannel;
+	global $guild, $channel_main, $channel_admin, $channel_log_ingame, $channel_log_voice, $channel_log_afk;
 
-    echo "Bot is ready!", PHP_EOL;
+	echo "Bot is ready!", PHP_EOL;
 
-	$guild        = $discord->guilds->get("id", GUILD_ID);
-	$mainChannel  = $guild->channels->get("id", CHANNEL_MAIN);
-	$adminChannel = $guild->channels->get("id", CHANNEL_ADMIN);
-	$logChannel   = $guild->channels->get("id", CHANNEL_LOG_PLAYING);
+	$guild              = $discord->guilds->get("id", GUILD_ID);
+	$channel_admin      = $guild->channels->get("id", CHANNEL_ADMIN);
+	$channel_main       = $guild->channels->get("id", CHANNEL_MAIN);
+	$channel_log_afk    = $guild->channels->get("id", CHANNEL_LOG_AFK);
+	$channel_log_ingame = $guild->channels->get("id", CHANNEL_LOG_PLAYING);
+	$channel_log_voice  = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
 	// include "registerCommands.php";
 });
@@ -61,7 +73,7 @@ $discord->on('ready', function (Discord $discord) {
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) {
 	if ($message->author->bot) return; // Ignore bots bullshit
 
-	if($message->member->roles->get("id", ROLE_AFK)) {
+	if ($message->member->roles->get("id", ROLE_AFK)) {
 		$message->member->removeRole(ROLE_AFK);
 	}
 
@@ -71,69 +83,120 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 });
 
 $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord $discord) {
-	global $logChannel, $tracker;
+	global $channel_log_ingame, $tracker;
+
+	// if($presence->author->bot) return;
 
 	$game    = $presence->activities->filter(fn ($activity) => $activity->type == Activity::TYPE_PLAYING)->first();
 	$member  = $presence->member;
-	$isAdmin = $member->roles->get("id", ROLE_ADMIN);
-	$isAFK   = $member->roles->get("id", ROLE_AFK);
 
-	if($member->status == "idle" && !$isAFK) {
-		$member->addRole(ROLE_AFK);
-		if($member->getVoiceChannel()) $member->moveMember(NULL, "Became AFK.");
+	if ($member->status == "idle") {
+		ToggleAFK($member, true);
+		if ($member->getVoiceChannel()) $member->moveMember(NULL, "Became AFK."); // Remove member from the voice channels if they become AFK
+	} elseif ($member->status == "online") {
+		ToggleAFK($member, false);
 	}
-	elseif($member->status == "online" && $isAFK) {
-		$member->removeRole(ROLE_AFK, "Came back online.");
-	}
-	
+
 	// Check if this activity is actually different than what we've got saved already, if so then save
-	if(!$tracker->set($member->username, $game?->name, $game?->state)) return;
+	if (!$tracker->set($member->username, $game?->name, $game?->state)) return;
 
 	// Apply Ingame Role if inside Gameserver
-	if($game?->name == SERVER_NAME || $game?->state == SERVER_NAME) {
-		$member->addRole(ROLE_PLAYING);
+	if ($game?->name == SERVER_NAME || $game?->state == SERVER_NAME) {
+		$member->addRole(ROLE_INGAME);
 		// Move player if he is inside a voice channel
-		if($member->getVoiceChannel()) $member->moveMember(CHANNEL_VOICE_PLAYING, "Began playing.");
+		if ($member->getVoiceChannel()) $member->moveMember(CHANNEL_VOICE_PLAYING, "Começou a jogar.");
 	} else {
-		$member->removeRole(ROLE_PLAYING);
+		$member->removeRole(ROLE_INGAME);
 		// Move player if he is inside a voice channel
-		if($member->getVoiceChannel() && !$isAdmin) $member->moveMember(CHANNEL_VOICE_MAIN, "Stopped playing.");
+		if ($member->getVoiceChannel() && !IsMemberAdmin($member)) $member->moveMember(CHANNEL_VOICE_MAIN, "Parou de jogar.");
 	}
 
-	$logChannel->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game","playing", $game->name, $game->state) : " está agora a jogar **$game->name**") : _U("game", "not_playing")));
+	$channel_log_ingame->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game", "playing", $game->name, $game->state) : " está agora a jogar **$game->name**") : _U("game", "not_playing")));
 });
 
 $discord->listenCommand('afk', function (Interaction $interaction) {
-	global $mainChannel, $adminChannel;
+	global $channel_main, $channel_admin;
 
 	$member  = $interaction->member;
-	$isAFK   = $member->roles->get("id", ROLE_AFK);    // Check if the member has the role or not
-	$isAdmin = $member->roles->get("id", ROLE_ADMIN);
+	$is_afk   = IsMemberAFK($member);    // Check if the member has the role or not
 
-	if(!$isAFK) {
-		$message = $member . " ficou agora AFK";
-		$member->addRole(ROLE_AFK);
+	if (!$is_afk) {
+		ToggleAFK($member, true);
 		$member->moveMember(NULL); // Remove member from Voice Channels
-		$mainChannel->sendMessage($message);
-		if($isAdmin) $adminChannel->sendMessage($message);
 	} else {
-		$message = $member . " não está mais AFK.";
-		$member->removeRole(ROLE_AFK); // Add or Remove Role accordingly
-		$mainChannel->sendMessage($message);
-		if($isAdmin) $adminChannel->sendMessage($message);
+		ToggleAFK($member, false); // Add or Remove Role accordingly
 	}
 
-	$interaction->respondWithMessage(MessageBuilder::new()->setContent($isAFK ? _U("afk", "self_not_afk") : _U("afk", "self_afk")), true);
+	$message = $is_afk ? "$member não está mais AFK." : "$member ficou agora AFK";
+	$channel_main->sendMessage($message);
+	if (IsMemberAdmin($member)) $channel_admin->sendMessage($message);
+
+	$interaction->respondWithMessage(MessageBuilder::new()->setContent($is_afk ? _U("afk", "self_not_afk") : _U("afk", "self_afk")), true);
 });
 
-$discord->on(Event::VOICE_STATE_UPDATE, function(VoiceStateUpdate $voiceState, Discord $discord, $oldState) {
-	$member 	= $voiceState->member;
-	$isPlaying 	= $member->roles->get("id", ROLE_PLAYING);
-	$isAdmin 	= $member->roles->get("id", ROLE_ADMIN);
+$discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $voiceState, Discord $discord, $oldState) {
+	global $channel_admin, $channel_log_voice;
 
-	// Don't let the player move to the lobby channel, unless he's an admin or was pushed
-	if(!$isAdmin && $isPlaying && $voiceState->channel_id == CHANNEL_VOICE_MAIN)
-		$member->moveMember(CHANNEL_VOICE_PLAYING, "Tried switching back to the lobby.");
+	$member 	= $voiceState->member;
+	$channel = $voiceState->channel;
+
+	// Don't let the player move to the lobby channel, unless he's an admin
+	if (!IsMemberAdmin($member) && IsMemberIngame($member) && $voiceState->channel_id == CHANNEL_VOICE_MAIN) {
+		$member->moveMember(CHANNEL_VOICE_PLAYING, "Tentou voltar ao lobby.");
+		return;
+	}
+
+	if ($channel->id == CHANNEL_VOICE_ADMIN) $channel_admin->sendMessage("$member->username entrou no $channel. @here");
+
+	$channel_log_voice->sendMessage($member->username . ($channel ?  " entrou no canal $channel." : " saiu do canal de voz."));
 });
 
 $discord->run();
+
+function ToggleAFK(Member $member, bool $toggle): bool
+{
+	$is_afk = IsMemberAFK($member);
+
+	print($is_afk . " " . $toggle);
+
+	if ($is_afk === $toggle) return false;
+
+	global $channel_log_afk;
+
+	if ($toggle) $member->addRole(ROLE_AFK, "Ficou AFK.");
+	else $member->removeRole(ROLE_AFK, "Voltou de AFK.");
+
+	$channel_log_afk->sendMessage($member->username . ($toggle ? " ficou AFK." : " voltou de AFK."));
+
+	return true;
+}
+
+function SetMemberIsIngame(Member $member, bool $toggle): bool {
+	$is_ingame = IsMemberIngame($member);
+
+	print($is_ingame . " " . $toggle);
+
+	if ($is_ingame === $toggle) return false;
+
+	global $channel_log_ingame;
+
+	if ($toggle) $member->addRole(ROLE_INGAME, "Ficou AFK.");
+	else $member->removeRole(ROLE_INGAME, "Voltou de AFK.");
+
+	$channel_log_ingame->sendMessage($member->username . ($toggle ? " ficou AFK." : " voltou de AFK."));
+
+	return true;
+}
+
+function IsMemberAFK(Member $member): bool
+{
+	return $member->roles->get("id", ROLE_AFK) ? true : false;
+}
+
+function IsMemberAdmin(Member $member): bool {
+	return $member->roles->get("id", ROLE_ADMIN) ? true : false;
+}
+
+function IsMemberIngame(Member $member): bool {
+	return $member->roles->get("id", ROLE_INGAME) ? true : false;
+}
