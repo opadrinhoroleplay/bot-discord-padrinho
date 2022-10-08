@@ -11,22 +11,23 @@ class GameSessions {
     }
 
     function open(Member $member, Activity $game) {
-        if($this->members[$member->id]) return false;
+        if(array_key_exists($member->id, $this->members)) return false;
 
         // Check if we already have this game in database. If not then create it
         $game_id = $this->GetGameId($game->name);
 
         if($game_id === 0) $game_id = $this->CreateGame($game->name);
-
-        if(!$game_id) {
-            print("Unable to get or create a game.");
+        elseif(!$game_id) {
+            print("Unable to get or create a game.\n");
             return false;
         }
 
-        $result = $this->db->query("INSERT INTO discord_member_game_sessions (member_id, game_id, game_state) VALUES('$member->id', '$game_id', '$game->state');");
+        $game_state = $this->db->escape_string($game->state);
+
+        $result = $this->db->query("INSERT INTO discord_member_game_sessions (member_id, game_id, game_state) VALUES('$member->id', '$game_id', '$game_state');");
 
         if(!$result) {
-            print("Unable to open session for '$member->username'");
+            print("Unable to open session for '$member->username'.\n");
             return false;
         }
 
@@ -34,12 +35,12 @@ class GameSessions {
 
         $this->members[$member->id] = $session_id;
 
-        print("Opened session '$session_id' for member '$member->username'.");
+        print("Opened session '$session_id' for member '$member->username'.\n");
 
         // Check if we have the user's name in the database and add it if we don't
         if($member->username && !$this->GetPlayerUsername($member->id)) {
             $this->db->query("INSERT INTO discord_members (id, username) VALUES('$member->id', '$member->username');");
-            print("Created $member->username in the database.\n");
+            print("Created '$member->username' in the database.\n");
         }
 
         return true;
@@ -49,32 +50,33 @@ class GameSessions {
         $session_id = $this->getMemberSession($member);
 
         if(!$session_id) {
-            print("$member->username doesn't have an open session.");
+            print("'$member->username' doesn't have an open session.\n");
             return false;
         }
 
         try {
             $this->db->query("UPDATE discord_member_game_sessions SET `end` = NOW() WHERE id = $session_id;");
         } catch (Exception $ex) {
-            print("Unable to close the session in the database.");
+            print("Unable to close the session in the database.\n");
         }
 
         $this->members[$member->id] = NULL;
 
-        print("Session '$session_id' closed for '$member->username'.");
+        print("Session '$session_id' closed for '$member->username'.\n");
 
         return true;
     }
 
     private function getMemberSession(Member $member): int|bool {
-        if(!$this->members[$member->id]) { // There's no session id in memory
+        if(!array_key_exists($member->id, $this->members)) { // There's no session id in memory
             // Check database if there is any open
-            $result = $this->db->query("SELECT id FROM discord_game_sessions WHERE user_id = '$member->id' AND `end` IS NULL;");
+            $result = $this->db->query("SELECT id FROM discord_member_game_sessions WHERE member_id = '$member->id' AND `end` IS NULL;");
 
             if($result->num_rows) return $result->fetch_column(); else return false;
-        }
+        } else
+            return $this->members[$member->id]; // There's a session id so just return it
 
-        return $this->members[$member->id]; // There's a session id so just return it
+        return false;
     }
 
     private function GetGameId(string $game_title): int|bool {
@@ -87,7 +89,7 @@ class GameSessions {
     
             if($result->num_rows) return $result->fetch_column(); else return 0;
         } catch (Exception $ex) {
-            print("Database Error: {$ex->getMessage()}");
+            print("Database Error: {$ex->getMessage()}\n");
         }
     
         return false;

@@ -72,13 +72,13 @@ $discord->on('ready', function (Discord $discord) {
 
 	echo "Bot is ready!", PHP_EOL;
 
-	$guild              = $discord->guilds->get("id", GUILD_ID);
-	$channel_admin      = $guild->channels->get("id", CHANNEL_ADMIN);
-	$channel_main       = $guild->channels->get("id", CHANNEL_MAIN);
-	$channel_log_traidores  = $guild->channels->get("id", "1026667050489352272");
-	$channel_log_afk    = $guild->channels->get("id", CHANNEL_LOG_AFK);
-	$channel_log_ingame = $guild->channels->get("id", CHANNEL_LOG_INGAME);
-	$channel_log_voice  = $guild->channels->get("id", CHANNEL_LOG_VOICE);
+	$guild                 = $discord->guilds->get("id", GUILD_ID);
+	$channel_admin         = $guild->channels->get("id", CHANNEL_ADMIN);
+	$channel_main          = $guild->channels->get("id", CHANNEL_MAIN);
+	$channel_log_traidores = $guild->channels->get("id", "1026667050489352272");
+	$channel_log_afk       = $guild->channels->get("id", CHANNEL_LOG_AFK);
+	$channel_log_ingame    = $guild->channels->get("id", CHANNEL_LOG_INGAME);
+	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
 	// include "registerCommands.php";
 });
@@ -109,7 +109,7 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	}
 
 	// Handle game sessions
-	if($game->name) { // Playing a game
+	if($game?->name) { // Playing a game
 		$our_server = $game->name == SERVER_NAME || $game?->state == SERVER_NAME ? true : false;
 		$traidorfdp = GameSessions::IsRoleplayServer([$game->name, $game?->state]) && !$our_server ? true : false;
 
