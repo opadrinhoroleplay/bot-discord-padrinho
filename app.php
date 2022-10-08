@@ -41,25 +41,24 @@ use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 
 use Monolog\Handler\StreamHandler;
-use Monolog\Level;
 use Monolog\Logger;
 
 print("Starting Padrinho\n\n");
 
-$guild              = (object) NULL;
-$channel_admin      = (object) NULL;
-$channel_main       = (object) NULL;
-$channel_log_traidores  = (object) NULL;
-$channel_log_ingame = (object) NULL;
-$channel_log_voice  = (object) NULL;
-$channel_log_afk    = (object) NULL;
+$guild                 = (object) NULL;
+$channel_admin         = (object) NULL;
+$channel_main          = (object) NULL;
+$channel_log_traidores = (object) NULL;
+$channel_log_ingame    = (object) NULL;
+$channel_log_voice     = (object) NULL;
+$channel_log_afk       = (object) NULL;
 
 $db = new mysqli("p:vulpecula.flaviopereira.digital", "root", "conacona", "fivem_opadrinho");
 
 $game_sessions = new GameSessions($db);
 
 $logger = new Logger('DiscordPHP');
-$logger->pushHandler(new StreamHandler('php://stdout', Level::Info));
+$logger->pushHandler(new StreamHandler('php://stdout', Logger::INFO));
 
 $discord = new Discord([
 	'logger'		 => $logger,
@@ -95,7 +94,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 });
 
 $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord $discord) {
-	global $channel_log_traidores, $channel_log_ingame, $tracker;
+	global $game_sessions;
 
 	// if($presence->author->bot) return;
 
@@ -112,16 +111,13 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	// Handle game sessions
 	if($game->name) { // Playing a game
 		$our_server = $game->name == SERVER_NAME || $game?->state == SERVER_NAME ? true : false;
-		$traidorfdp = IsRoleplayServer([$game->name, $game?->state]) && !$our_server ? true : false;
+		$traidorfdp = GameSessions::IsRoleplayServer([$game->name, $game?->state]) && !$our_server ? true : false;
 
 		$game_sessions->open($member, $game);
-
 	} else { // Not playing a game
 		$game_sessions->close($member);
 	}
 	
-	
-
 	// SetMemberIngame($member, $our_server);
 
 	// if($traidorfdp) $channel_log_traidores->sendMessage("**{$member->username}** está a jogar roleplay noutro servidor.");
