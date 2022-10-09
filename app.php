@@ -1,7 +1,7 @@
 <?php
 include "vendor/autoload.php";
+include "config.php";
 include "language.php";
-// include "PlayTracker.class.php";
 include "GameSessions.class.php";
 
 define("GUILD_ID", 519268261372755968);
@@ -21,11 +21,9 @@ define("ROLE_ADMIN", 929172055977508924);
 define("ROLE_AFK", 1020313717805699185);
 define("ROLE_INGAME", 1020385919695585311);
 
-define("SERVER_NAME", "VIRUXE's Sandbox");
+define("SERVER_NAME", $config->server->name);
 
-$env = Dotenv\Dotenv::createImmutable(__DIR__);
-$env->load();
-$env->required('TOKEN');
+use React\EventLoop\Loop;
 
 // use Discord\Parts\Channel\Channel;
 use Discord\Builders\MessageBuilder;
@@ -53,16 +51,16 @@ $channel_log_ingame    = (object) NULL;
 $channel_log_voice     = (object) NULL;
 $channel_log_afk       = (object) NULL;
 
-$db = new mysqli("p:vulpecula.flaviopereira.digital", "root", "conacona", "fivem_opadrinho");
+$db = new mysqli("p:{$config->database->host}", $config->database->user, $config->database->pass, $config->database->database);
 
-$game_sessions = new GameSessions($db);
+// $game_sessions = new GameSessions($db);
 
 $logger = new Logger('DiscordPHP');
-$logger->pushHandler(new StreamHandler('php://stdout', Logger::INFO));
+$logger->pushHandler(new StreamHandler('php://stdout', Monolog\Level::Info));
 
 $discord = new Discord([
 	'logger'		 => $logger,
-	'token'          => $_ENV['TOKEN'],
+	'token'          => $config->discord->token,
 	'intents'        => Intents::getDefaultIntents() | Intents::GUILD_MEMBERS | Intents::GUILD_PRESENCES,
 	'loadAllMembers' => false
 ]);
@@ -94,31 +92,58 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 });
 
 $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord $discord) {
+	if ($presence->user->bot) return;
+
+	// var_dump($presence);
+
 	global $game_sessions;
+	static $member_status = [];
+	$member = $presence->member;
 
-	// if($presence->author->bot) return;
+	// Handle status updates
+	if (!array_key_exists($member->id, $member_status)) {
+		print("Setting status '$member->status' for '$member->username'.\n");
+		$member_status[$member->id] = $member->status;
 
-	$game    = $presence->activities->filter(fn ($activity) => $activity->type == Activity::TYPE_PLAYING)->first();
-	$member  = $presence->member;
+		return;
+	} else { // We already have a previous status saved
+		$last_status = $member_status[$member->id];
+		$curr_status = $member->status;
 
-	if ($member->status == "idle") {
-		SetMemberAFK($member, true);
-		if ($member->getVoiceChannel()) $member->moveMember(NULL, "Became AFK."); // Remove member from the voice channels if they become AFK
-	} elseif ($member->status == "online") {
-		SetMemberAFK($member, false);
+		if ($last_status != $curr_status) {
+			if ($curr_status == "idle") {
+				SetMemberAFK($member, true);
+				if ($member->getVoiceChannel()) $member->moveMember(NULL, "Became AFK."); // Remove member from the voice channels if they become AFK
+			} else SetMemberAFK($member, false);
+
+			print("'$member->username' updated status: '$last_status' -> '$curr_status'\n");
+
+			$member_status[$member->id] = $curr_status; // Update the status
+
+			return;
+		} else {
+			print("'$member->username' updated their presence, other than the status.\n");
+		}
 	}
 
 	// Handle game sessions
-	if($game?->name) { // Playing a game
-		$our_server = $game->name == SERVER_NAME || $game?->state == SERVER_NAME ? true : false;
-		$traidorfdp = GameSessions::IsRoleplayServer([$game->name, $game?->state]) && !$our_server ? true : false;
+	$game = $presence->activities->filter(fn ($activity) => $activity->type == Activity::TYPE_PLAYING)->first();
 
-		$game_sessions->open($member, $game);
+	if ($game) { // Playing a game
+		// $game_sessions->open($member, $game);
+
+		// Check if they are playing on our server or not
+		if($game->name == SERVER_NAME || $game?->state == SERVER_NAME) { // Playing on our server
+			SetMemberIngame($member, true);
+		} else { // Not playing on our server
+			$traidorfdp = GameSessions::IsRoleplayServer([$game->name, $game?->state]);
+			
+		}
 	} else { // Not playing a game
-		$game_sessions->close($member);
+		// $game_sessions->close($member);
+		SetMemberIngame($member, false);
 	}
-	
-	// SetMemberIngame($member, $our_server);
+
 
 	// if($traidorfdp) $channel_log_traidores->sendMessage("**{$member->username}** está a jogar roleplay noutro servidor.");
 	// $channel_log_ingame->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game", "playing", $game->name, $game->state) : "está agora a jogar **$game->name**") . ($traidorfdp ? " @here" : NULL) : _U("game", "not_playing")));
@@ -158,6 +183,19 @@ $discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $voiceState, 
 
 $discord->run();
 
+/*
+	For some reason even a persistent connection goes away after some time.
+	So I figured I would put a ping on a loop instead of pinging with every database query.
+*/
+Loop::addPeriodicTimer(.1, function () {
+	global $db;
+	
+	if($db->ping()) print("Database Connection has gone away. Reconnecting...\n");
+    $memory = memory_get_usage() / 1024;
+    $formatted = number_format($memory, 3).'K';
+    echo "Current memory usage: {$formatted}\n";
+});
+
 function SetMemberAFK(Member $member, bool $toggle): bool
 {
 	$is_afk = IsMemberAFK($member);
@@ -171,46 +209,48 @@ function SetMemberAFK(Member $member, bool $toggle): bool
 	if ($toggle) {
 		$member->addRole(ROLE_AFK, "Ficou AFK.");
 		$member->moveMember(NULL); // Remove member from Voice Channels
-	}
-	else $member->removeRole(ROLE_AFK, "Voltou de AFK.");
+	} else $member->removeRole(ROLE_AFK, "Voltou de AFK.");
 
 	$channel_log_afk->sendMessage($member->username . ($toggle ? " ficou AFK." : " voltou de AFK."));
 
 	return true;
 }
 
-function SetMemberIngame(Member $member, bool $toggle): bool {
+function SetMemberIngame(Member $member, bool $toggle): bool
+{
 	$is_ingame      = IsMemberIngame($member);
 	$member_channel = $member->getVoiceChannel();
-	
+
 	// print($is_ingame . " " . $toggle);
-	
+
 	if ($is_ingame === $toggle) return false;
-	
+
 	global $channel_admin;
 
 	if ($toggle) {
-		$member->addRole(ROLE_INGAME, "Ficou AFK."); // Set the AFK role
-		if ($member_channel) $member->moveMember(CHANNEL_VOICE_INGAME, "Começou a jogar."); // Move member to the in-game channel when in-game
-	}
-	else {
-		$member->removeRole(ROLE_INGAME, "Voltou de AFK.");
-		if ($member_channel && !IsMemberAdmin($member)) $member->moveMember(CHANNEL_VOICE_LOBBY, "Parou de jogar."); // Move member to the voice lobby if not in-game anymore
+		$member->addRole(ROLE_INGAME, "Entrou no Servidor."); // Set the AFK role
+		if ($member_channel) $member->moveMember(CHANNEL_VOICE_INGAME, "Entrou no Servidor."); // Move member to the in-game channel when in-game
+	} else {
+		$member->removeRole(ROLE_INGAME, "Saiu do Servidor.");
+		if ($member_channel && !IsMemberAdmin($member)) $member->moveMember(CHANNEL_VOICE_LOBBY, "Saiu do Servidor."); // Move member to the voice lobby if not in-game anymore
 	}
 
-	// $channel_admin->sendMessage($member->username . ($toggle ? " entrou no servidor." : " saiu do servidor."));
+	$channel_admin->sendMessage($member->username . ($toggle ? " entrou no servidor." : " saiu do servidor."));
 
 	return true;
 }
 
-function IsMemberAFK(Member $member): bool {
+function IsMemberAFK(Member $member): bool
+{
 	return $member->roles->get("id", ROLE_AFK) ? true : false;
 }
 
-function IsMemberAdmin(Member $member): bool {
+function IsMemberAdmin(Member $member): bool
+{
 	return $member->roles->get("id", ROLE_ADMIN) ? true : false;
 }
 
-function IsMemberIngame(Member $member): bool {
+function IsMemberIngame(Member $member): bool
+{
 	return $member->roles->get("id", ROLE_INGAME) ? true : false;
 }

@@ -2,6 +2,6 @@
     "require": {
         "team-reflex/discord-php": "^7.x-dev",
         "chillerlan/php-dotenv": "^2.1",
-        "vlucas/phpdotenv": "^5.4"
+        "react/event-loop": "1.3"
     }
 }
