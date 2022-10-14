@@ -187,14 +187,14 @@ $discord->run();
 	For some reason even a persistent connection goes away after some time.
 	So I figured I would put a ping on a loop instead of pinging with every database query.
 */
-Loop::addPeriodicTimer(.1, function () {
+/* Loop::addPeriodicTimer(.1, function () {
 	global $db;
 	
 	if($db->ping()) print("Database Connection has gone away. Reconnecting...\n");
     $memory = memory_get_usage() / 1024;
     $formatted = number_format($memory, 3).'K';
     echo "Current memory usage: {$formatted}\n";
-});
+}); */
 
 function SetMemberAFK(Member $member, bool $toggle): bool
 {
