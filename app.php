@@ -246,11 +246,11 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 
 			// Set permissions for each member and send them a message
 			foreach ($channel_members as $channel_member) {
-				$channel->setPermissions($channel_member, []);
+				$channel->setPermissions($channel_member, ['connect']);
 				$channel_member->sendMessage("$member autorizou-te a entrar no Canal de Voz Privado '$channel->name'.");
 			}
 			
-			$channel->setPermissions($member, []);
+			$channel->setPermissions($member, ['connect']);
 			if ($member->getVoiceChannel()) $member->moveMember($channel->id); // Move the Member who executed the command.
 			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei o Canal $channel para ti e para os teus amigos."), true);
 		},
