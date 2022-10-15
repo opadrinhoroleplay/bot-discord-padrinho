@@ -1,5 +1,6 @@
 <?php
 include "vendor/autoload.php";
+include "Utils.php";
 include "config.php";
 include "language.php";
 include "GameSessions.class.php";
@@ -236,7 +237,7 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 		function (Channel $channel) use ($interaction, $member, $channel_members) {
 			print("Created a new Voice Channel: '$channel->name'\n");
 
-			// Set permissions for each member and move them
+			// Set permissions for each member and send them a message
 			foreach ($channel_members as $channel_member) {
 				$channel->setPermissions($channel_member, [])->done();
 				$channel_member->sendMessage("$member autorizou-te a entrar no Canal de Voz Privado '$channel->name'.");
@@ -244,9 +245,9 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 			
 			$channel->setPermissions($member, [])->done();
 			$member->moveMember($channel->id); // Move the Member who executed the command.
-			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei o Canal $channel para ti."), true);
+			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei o Canal $channel para ti e para os teus amigos."), true);
 		},
-		function ($error) { print("Impossivel criar canal privado."); }
+		function ($error) { print("Impossivel criar canal privado.\n$error\n"); }
 	);
 });
 
