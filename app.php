@@ -25,7 +25,9 @@ define("SERVER_NAME", $config->server->name);
 
 use React\EventLoop\Loop;
 
-// use Discord\Parts\Channel\Channel;
+use Discord\Parts\Channel\Channel;
+use Discord\Parts\Interactions\Command\Command;
+use Discord\Parts\Permissions\ChannelPermission;
 use Discord\Builders\MessageBuilder;
 use Discord\Discord;
 use Discord\Parts\Channel\Message;
@@ -34,7 +36,7 @@ use Discord\Parts\User\Activity;
 use Discord\Parts\User\Member;
 use Discord\Parts\WebSockets\PresenceUpdate;
 use Discord\Parts\WebSockets\VoiceStateUpdate;
-
+use Discord\Repository\Guild\MemberRepository;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 
@@ -79,6 +81,18 @@ $discord->on('ready', function (Discord $discord) {
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
 	// include "registerCommands.php";
+    /* $guild->commands->save(new Command($discord, [
+		'name' => 'voz', 
+		'description' => 'Cria um Canal de Voz para ti e para os teus amigos.',
+		"options" => [
+			[
+				"type"        => 3,
+				"name"        => "membros",
+				"description" => "Membros do canal. Separados por virgula (membro,membro,membro)",
+				"required"    => true
+			]
+		]
+	])); */
 });
 
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) {
@@ -180,6 +194,63 @@ $discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $voiceState, 
 	if ($channel?->id == CHANNEL_VOICE_ADMIN) $channel_admin->sendMessage("$member->username entrou no $channel. @here");
 
 	$channel_log_voice->sendMessage($member->username . ($channel ?  " entrou no canal $channel." : " saiu do canal de voz."));
+});
+
+$discord->listenCommand('voz', function (Interaction $interaction) {
+	$member = $interaction->member;
+
+	// Check if the member doesn't already have a channel
+	// Loop though Voice channels to check for Member in permissions
+
+	// Get allowed members from interaction arguments
+	$channel_members = [];
+
+	preg_match("//^<@!?(\d+)>$//", $interaction->data->options["membros"]->value, $matches);
+
+	print_r($matches);
+
+	/* foreach (explode(" ", ) as $member) {
+
+		$member_object = $interaction->guild->members->get("id", $member["id"]);
+
+		if($member_object) $channel_members[] = $member_object;
+		print($member);
+	} */
+
+	// Create the Channel Part
+	$new_channel = $interaction->guild->channels->create([
+		"parent_id" => 1030787112628400198,
+		"name" => "voz-" . rand(0, 9999),
+		"type" => Channel::TYPE_VOICE,
+		"bitrate" => 96000
+	]);
+
+	$response = "Impossível criar um canal neste momento";
+
+	// Submit the part
+	$interaction->guild->channels->save($new_channel, "Canal de Voz para '$member->username'")->done(
+		function (Channel $channel) use ($interaction, $member, $channel_members, $response) {
+			print("Created a new Voice Channel: '$channel->name'\n");
+
+			// Set permissions for each member and move them
+			foreach ($channel_members as $channel_member) {
+				if($channel_member |= $member) continue;
+
+				// $channel->setPermissions($channel_member, [])->done();
+
+				// $channel_member->sendMessage("$member criou o canal $channel.");
+				$member->moveMember($channel->id);
+
+				$response = "Criei o Canal $channel para ti.";
+			}
+
+			$channel->setPermissions($member, [])->done();
+			$member->moveMember($channel->id); // Move the Member who executed the command.
+		},
+		function ($error) { var_dump($error); }
+	);
+	
+	$interaction->respondWithMessage(MessageBuilder::new()->setContent($response), true);
 });
 
 $discord->run();
