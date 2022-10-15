@@ -1,4 +1,6 @@
 <?php
+declare(strict_types = 1);
+
 include "vendor/autoload.php";
 include "Utils.php";
 include "config.php";
@@ -82,14 +84,14 @@ $discord->on('ready', function (Discord $discord) {
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
 	// include "registerCommands.php";
-    /* $guild->commands->save(new Command($discord, [
+	/* $guild->commands->save(new Command($discord, [
 		'name' => 'voz', 
-		'description' => 'Cria um Canal de Voz para ti e para os teus amigos.',
+		'description' => 'Cria/edita um Canal de Voz Privado, para ti e para os teus amigos.',
 		"options" => [
 			[
 				"type"        => 3,
 				"name"        => "membros",
-				"description" => "Membros do canal. Separados por virgula (membro,membro,membro)",
+				"description" => "Membros do canal. Mencionados com @ (Exemplo: @membro @membro @membro)",
 				"required"    => true
 			],
 			[
@@ -154,11 +156,10 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 		// $game_sessions->open($member, $game);
 
 		// Check if they are playing on our server or not
-		if($game->name == SERVER_NAME || $game?->state == SERVER_NAME) { // Playing on our server
+		if ($game->name == SERVER_NAME || $game?->state == SERVER_NAME) { // Playing on our server
 			SetMemberIngame($member, true);
 		} else { // Not playing on our server
 			$traidorfdp = GameSessions::IsRoleplayServer([$game->name, $game?->state]);
-			
 		}
 	} else { // Not playing a game
 		// $game_sessions->close($member);
@@ -204,30 +205,12 @@ $discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $newState, Di
 });
 
 $discord->listenCommand('voz', function (Interaction $interaction) {
-	$member = $interaction->member;
+	$member  = $interaction->member;
 	$options = $interaction->data->options;
-	$existing_channel = NULL;
-
-	// Check if the member doesn't already have a channel
-	// Loop though Voice channels to check for Member in permissions
-	foreach ($interaction->guild->channels as $channel) {
-		if($channel->parent_id != 1030787112628400198) continue; // Other categories
-		if($channel->id == 1019237971217612840) continue; // Lobby
-
-		// Loop through permissions
-		foreach ($channel->permission_overwrites as $permission) {
-			if($permission->type != 1) continue; // Ignore whatever is not a Member
-
-			if($permission->id == $member->id) {
-				$existing_channel = $channel->id;
-				print("$member->username já tem um canal. $channel->name ($channel->id).\n");
-				break 2;
-			}
-		}
-	}
+	$channel = GetMemberVoiceChannel($member);
 
 	// Get allowed members from interaction arguments
-	if(!preg_match_all('<@([0-9]+)>', $options["membros"]->value, $matches)) {
+	if (!preg_match_all('<@([0-9]+)>', $options["membros"]->value, $matches)) {
 		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tens que especificar/mencionar (@membro) pelomenos um membro do Discord para fazer parte do teu canal."), true);
 		return;
 	}
@@ -235,43 +218,74 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 	$channel_members = [];
 
 	foreach ($matches[1] as $member_id) {
-		if($member_id == $member->id) continue;
+		if ($member_id == $member->id) continue;
 
 		$member_object = $interaction->guild->members->get("id", $member_id);
 
-		if($member_object) $channel_members[] = $member_object;
+		if ($member_object) $channel_members[] = $member_object;
 	}
 
-	if(!count($channel_members)) {
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Não consegui dar permissão a esse(s). Tens que @mencionar cada Membro."), true);
+	if (!count($channel_members)) {
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Não consegui identificar algum Membro. Tens que '@mencionar' cada um deles."), true);
 		return;
 	}
 
-	// Create the Channel Part
-	$new_channel = $interaction->guild->channels->create([
-		"parent_id" => 1030787112628400198, // 'Voz' Category
-		"name" => $options["nome"] ? slugify($options["nome"]->value) : "voz-" . rand(1000, 9999),
-		"type" => Channel::TYPE_VOICE,
-		"bitrate" => 96000
-	]);
+	if ($channel) { // Member has a channel for themselves already
+		// Grab the Channel object first
+		$channel = $interaction->guild->channels->get("id", $channel);
 
-	// Submit the part
-	$interaction->guild->channels->save($new_channel, "Canal de Voz para '$member->username'")->done(
-		function (Channel $channel) use ($interaction, $member, $channel_members) {
-			print("Created a new Voice Channel: '$channel->name'\n");
+		// Set a new name if one was provided
+		if($options["nome"]) $channel->name = slugify($options["nome"]->value);
 
-			// Set permissions for each member and send them a message
-			foreach ($channel_members as $channel_member) {
-				$channel->setPermissions($channel_member, ['connect']);
-				$channel_member->sendMessage("$member autorizou-te a entrar no Canal de Voz Privado '$channel->name'.");
+		$interaction->guild->channels->save($channel, "Alterado Canal de Voz de '$member->username'")->done(
+			function (Channel $channel) use ($interaction, $member, $channel_members) {
+				print("Edited Voice Channel: '$channel->name'\n");
+
+				// Set permissions for each member and send them a message
+				$channel->permissions = null;
+
+				foreach ($channel_members as $channel_member) {
+					$channel->setPermissions($channel_member, ['connect']);
+					$channel_member->sendMessage("$member autorizou-te a entrar no Canal de Voz Privado '$channel->name'.");
+				}
+
+				if ($member->getVoiceChannel()) $member->moveMember($channel->id); // Move the Member who executed the command.
+				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Canal $channel alterado."), true);
+			},
+			function ($error) {
+				print("Impossivel editar canal privado.\n$error\n");
 			}
-			
-			$channel->setPermissions($member, ['connect']);
-			if ($member->getVoiceChannel()) $member->moveMember($channel->id); // Move the Member who executed the command.
-			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei o Canal $channel para ti e para os teus amigos."), true);
-		},
-		function ($error) { print("Impossivel criar canal privado.\n$error\n"); }
-	);
+		);
+
+	} else { // Member doesn't have a channel, so let's create one
+		// Create the Channel Part
+		$new_channel = $interaction->guild->channels->create([
+			"parent_id" => 1030787112628400198, // 'Voz' Category
+			"name" => $options["nome"] ? slugify($options["nome"]->value) : generateWhatThreeWords(),
+			"type" => Channel::TYPE_VOICE,
+			"bitrate" => 96000
+		]);
+
+		// Submit the part
+		$interaction->guild->channels->save($new_channel, "Canal de Voz para '$member->username'")->done(
+			function (Channel $channel) use ($interaction, $member, $channel_members) {
+				print("Created a new Voice Channel: '$channel->name'\n");
+
+				// Set permissions for each member and send them a message
+				foreach ($channel_members as $channel_member) {
+					$channel->setPermissions($channel_member, ['connect']);
+					$channel_member->sendMessage("$member autorizou-te a entrar no Canal de Voz Privado '$channel->name'.");
+				}
+
+				$channel->setPermissions($member, ['connect']);
+				if ($member->getVoiceChannel()) $member->moveMember($channel->id); // Move the Member who executed the command.
+				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei o Canal $channel para ti e para os teus amigos."), true);
+			},
+			function ($error) {
+				print("Impossivel criar canal privado.\n$error\n");
+			}
+		);
+	}
 });
 
 $discord->run();
@@ -344,4 +358,22 @@ function IsMemberAdmin(Member $member): bool
 function IsMemberIngame(Member $member): bool
 {
 	return $member->roles->get("id", ROLE_INGAME) ? true : false;
+}
+
+function GetMemberVoiceChannel(Member $member): string|null
+{
+	global $guild;
+
+	foreach ($guild->channels as $channel) {
+		if ($channel->parent_id != 1030787112628400198) continue; // Other categories
+		if ($channel->id == 1019237971217612840) continue; // Lobby
+
+		// Loop through permissions
+		foreach ($channel->permission_overwrites as $permission) {
+			if ($permission->type != 1) continue; // Ignore whatever is not a Member
+			if ($permission->id == $member->id) return $channel->id;
+		}
+	}
+
+	return NULL;
 }

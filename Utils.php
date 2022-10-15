@@ -23,3 +23,21 @@ function slugify($text)
 
 	return $text;
 }
+
+function getRandomWord(): string|null {
+	$words = file_get_contents("words.txt");
+	$words = explode("\n", $words);
+
+	do {
+		$word = $words[rand(0, count($words))];
+	} while (str_contains($word, "-") || strlen($word) >= 8);
+
+	return strtolower($word);
+}
+
+function generateWhatThreeWords(): string {
+	$string = sprintf("%s-%s-%s", getRandomWord(), getRandomWord(), getRandomWord());
+	// print($string);
+
+	return $string;
+}
