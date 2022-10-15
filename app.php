@@ -308,7 +308,7 @@ function SetMemberIngame(Member $member, bool $toggle): bool
 
 	if ($toggle) {
 		$member->addRole(ROLE_INGAME, "Entrou no Servidor."); // Set the AFK role
-		if ($member_channel) $member->moveMember(CHANNEL_VOICE_LOBBY, "Entrou no Servidor."); // Move member to the in-game channel when in-game
+		if ($member_channel && !IsMemberAdmin($member)) $member->moveMember(CHANNEL_VOICE_LOBBY, "Entrou no Servidor."); // Move member to the in-game channel when in-game
 	} else {
 		$member->removeRole(ROLE_INGAME, "Saiu do Servidor.");
 		if ($member_channel && !IsMemberAdmin($member)) $member->moveMember(CHANNEL_VOICE_DISCUSSION, "Saiu do Servidor."); // Move member to the voice lobby if not in-game anymore
