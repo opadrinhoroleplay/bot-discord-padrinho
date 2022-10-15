@@ -185,22 +185,20 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 	$interaction->respondWithMessage(MessageBuilder::new()->setContent($is_afk ? _U("afk", "self_not_afk") : _U("afk", "self_afk")), true);
 });
 
-$discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $newState, Discord $discord, VoiceStateUpdate $oldState) {
+$discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $newState, Discord $discord, $oldState) {
 	global $channel_admin, $channel_log_voice;
-
-	// print_r($oldState);
 
 	$member  = $newState->member;
 	$channel = $newState->channel;
 
 	// Don't let the player move to the lobby channel, unless he's an admin
 	if (!IsMemberAdmin($member) && IsMemberIngame($member) && $newState->channel_id == CHANNEL_VOICE_DISCUSSION) {
-		$member->moveMember(CHANNEL_VOICE_LOBBY, "Tentou voltar para a Discussão Geral.");
+		$member->moveMember($oldState->channel?->id ?? CHANNEL_VOICE_LOBBY, "Tentou voltar para a Discussão Geral.");
 		$member->sendMessage("Não podes voltar para Discussão Geral enquanto estiveres a jogar.");
 		return;
 	}
 
-	if ($channel?->id == CHANNEL_VOICE_ADMIN && $channel != $oldState?->channel) $channel_admin->sendMessage("$member->username entrou no $channel. @here");
+	if ($channel?->id == CHANNEL_VOICE_ADMIN && !$oldState?->channel) $channel_admin->sendMessage("$member->username entrou no $channel.");
 
 	$channel_log_voice->sendMessage($member->username . ($channel ?  " entrou no canal $channel." : " saiu do canal de voz."));
 });
@@ -208,9 +206,25 @@ $discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $newState, Di
 $discord->listenCommand('voz', function (Interaction $interaction) {
 	$member = $interaction->member;
 	$options = $interaction->data->options;
+	$existing_channel = NULL;
 
 	// Check if the member doesn't already have a channel
 	// Loop though Voice channels to check for Member in permissions
+	foreach ($interaction->guild->channels as $channel) {
+		if($channel->parent_id != 1030787112628400198) continue; // Other categories
+		if($channel->id == 1019237971217612840) continue; // Lobby
+
+		// Loop through permissions
+		foreach ($channel->permission_overwrites as $permission) {
+			if($permission->type != 1) continue; // Ignore whatever is not a Member
+
+			if($permission->id == $member->id) {
+				$existing_channel = $channel->id;
+				print("$member->username já tem um canal. $channel->name ($channel->id).\n");
+				break 2;
+			}
+		}
+	}
 
 	// Get allowed members from interaction arguments
 	if(!preg_match_all('<@([0-9]+)>', $options["membros"]->value, $matches)) {
@@ -298,8 +312,6 @@ function SetMemberAFK(Member $member, bool $toggle): bool
 function SetMemberIngame(Member $member, bool $toggle): bool
 {
 	$is_ingame      = IsMemberIngame($member);
-	$member_channel = $member->getVoiceChannel();
-
 	// print($is_ingame . " " . $toggle);
 
 	if ($is_ingame === $toggle) return false;
@@ -308,10 +320,10 @@ function SetMemberIngame(Member $member, bool $toggle): bool
 
 	if ($toggle) {
 		$member->addRole(ROLE_INGAME, "Entrou no Servidor."); // Set the AFK role
-		if ($member_channel && !IsMemberAdmin($member)) $member->moveMember(CHANNEL_VOICE_LOBBY, "Entrou no Servidor."); // Move member to the in-game channel when in-game
+		if ($member->getVoiceChannel() && !IsMemberAdmin($member)) $member->moveMember(CHANNEL_VOICE_LOBBY, "Entrou no Servidor."); // Move member to the in-game channel when in-game
 	} else {
 		$member->removeRole(ROLE_INGAME, "Saiu do Servidor.");
-		if ($member_channel && !IsMemberAdmin($member)) $member->moveMember(CHANNEL_VOICE_DISCUSSION, "Saiu do Servidor."); // Move member to the voice lobby if not in-game anymore
+		if ($member->getVoiceChannel() && !IsMemberAdmin($member)) $member->moveMember(CHANNEL_VOICE_DISCUSSION, "Saiu do Servidor."); // Move member to the voice lobby if not in-game anymore
 	}
 
 	$channel_admin->sendMessage($member->username . ($toggle ? " entrou no servidor." : " saiu do servidor."));
