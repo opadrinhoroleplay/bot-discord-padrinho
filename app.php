@@ -185,20 +185,22 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 	$interaction->respondWithMessage(MessageBuilder::new()->setContent($is_afk ? _U("afk", "self_not_afk") : _U("afk", "self_afk")), true);
 });
 
-$discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $voiceState, Discord $discord, $oldState) {
+$discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $newState, Discord $discord, VoiceStateUpdate $oldState) {
 	global $channel_admin, $channel_log_voice;
 
-	$member  = $voiceState->member;
-	$channel = $voiceState->channel;
+	// print_r($oldState);
+
+	$member  = $newState->member;
+	$channel = $newState->channel;
 
 	// Don't let the player move to the lobby channel, unless he's an admin
-	if (!IsMemberAdmin($member) && IsMemberIngame($member) && $voiceState->channel_id == CHANNEL_VOICE_DISCUSSION) {
+	if (!IsMemberAdmin($member) && IsMemberIngame($member) && $newState->channel_id == CHANNEL_VOICE_DISCUSSION) {
 		$member->moveMember(CHANNEL_VOICE_LOBBY, "Tentou voltar para a Discussão Geral.");
 		$member->sendMessage("Não podes voltar para Discussão Geral enquanto estiveres a jogar.");
 		return;
 	}
 
-	if ($channel?->id == CHANNEL_VOICE_ADMIN) $channel_admin->sendMessage("$member->username entrou no $channel. @here");
+	if ($channel?->id == CHANNEL_VOICE_ADMIN && $channel != $oldState?->channel) $channel_admin->sendMessage("$member->username entrou no $channel. @here");
 
 	$channel_log_voice->sendMessage($member->username . ($channel ?  " entrou no canal $channel." : " saiu do canal de voz."));
 });
