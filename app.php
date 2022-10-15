@@ -91,6 +91,12 @@ $discord->on('ready', function (Discord $discord) {
 				"name"        => "membros",
 				"description" => "Membros do canal. Separados por virgula (membro,membro,membro)",
 				"required"    => true
+			],
+			[
+				"type"        => 3,
+				"name"        => "nome",
+				"description" => "Nome que queres dar ao canal. Caso queiras.",
+				"required"    => false
 			]
 		]
 	])); */
@@ -199,12 +205,13 @@ $discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $voiceState, 
 
 $discord->listenCommand('voz', function (Interaction $interaction) {
 	$member = $interaction->member;
+	$options = $interaction->data->options;
 
 	// Check if the member doesn't already have a channel
 	// Loop though Voice channels to check for Member in permissions
 
 	// Get allowed members from interaction arguments
-	if(!preg_match_all('<@([0-9]+)>', $interaction->data->options["membros"]->value, $matches)) {
+	if(!preg_match_all('<@([0-9]+)>', $options["membros"]->value, $matches)) {
 		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tens que especificar/mencionar (@membro) pelomenos um membro do Discord para fazer parte do teu canal."), true);
 		return;
 	}
@@ -220,14 +227,14 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 	}
 
 	if(!count($channel_members)) {
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Não consegui criar um canal para ti. Contacta o @VIRUXE."), true);
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Não consegui dar permissão a esse(s). Tens que @mencionar cada Membro."), true);
 		return;
 	}
 
 	// Create the Channel Part
 	$new_channel = $interaction->guild->channels->create([
 		"parent_id" => 1030787112628400198, // 'Voz' Category
-		"name" => "voz-" . rand(1000, 9999),
+		"name" => $options["nome"] ? slugify($options["nome"]->value) : "voz-" . rand(1000, 9999),
 		"type" => Channel::TYPE_VOICE,
 		"bitrate" => 96000
 	]);
@@ -239,12 +246,12 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 
 			// Set permissions for each member and send them a message
 			foreach ($channel_members as $channel_member) {
-				$channel->setPermissions($channel_member, [])->done();
+				$channel->setPermissions($channel_member, []);
 				$channel_member->sendMessage("$member autorizou-te a entrar no Canal de Voz Privado '$channel->name'.");
 			}
 			
-			$channel->setPermissions($member, [])->done();
-			$member->moveMember($channel->id); // Move the Member who executed the command.
+			$channel->setPermissions($member, []);
+			if ($member->getVoiceChannel()) $member->moveMember($channel->id); // Move the Member who executed the command.
 			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei o Canal $channel para ti e para os teus amigos."), true);
 		},
 		function ($error) { print("Impossivel criar canal privado.\n$error\n"); }
