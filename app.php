@@ -14,8 +14,8 @@ define("CHANNEL_LOG_INGAME", 1019768367604838460);
 define("CHANNEL_LOG_VOICE", 1020683057835020358);
 
 define("CHANNEL_VOICE_ADMIN", 1018817931200700436);
-define("CHANNEL_VOICE_LOBBY", 960557917784920104);
-define("CHANNEL_VOICE_INGAME", 1019237971217612840);
+define("CHANNEL_VOICE_DISCUSSION", 960557917784920104);
+define("CHANNEL_VOICE_LOBBY", 1019237971217612840);
 
 define("ROLE_ADMIN", 929172055977508924);
 define("ROLE_AFK", 1020313717805699185);
@@ -171,8 +171,9 @@ $discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $voiceState, 
 	$channel = $voiceState->channel;
 
 	// Don't let the player move to the lobby channel, unless he's an admin
-	if (!IsMemberAdmin($member) && IsMemberIngame($member) && $voiceState->channel_id == CHANNEL_VOICE_LOBBY) {
-		$member->moveMember(CHANNEL_VOICE_INGAME, "Tentou voltar ao lobby.");
+	if (!IsMemberAdmin($member) && IsMemberIngame($member) && $voiceState->channel_id == CHANNEL_VOICE_DISCUSSION) {
+		$member->moveMember(CHANNEL_VOICE_LOBBY, "Tentou voltar para a Discussão Geral.");
+		$member->sendMessage("Não podes voltar para Discussão Geral enquanto estiveres a jogar.");
 		return;
 	}
 
@@ -229,10 +230,10 @@ function SetMemberIngame(Member $member, bool $toggle): bool
 
 	if ($toggle) {
 		$member->addRole(ROLE_INGAME, "Entrou no Servidor."); // Set the AFK role
-		if ($member_channel) $member->moveMember(CHANNEL_VOICE_INGAME, "Entrou no Servidor."); // Move member to the in-game channel when in-game
+		if ($member_channel) $member->moveMember(CHANNEL_VOICE_LOBBY, "Entrou no Servidor."); // Move member to the in-game channel when in-game
 	} else {
 		$member->removeRole(ROLE_INGAME, "Saiu do Servidor.");
-		if ($member_channel && !IsMemberAdmin($member)) $member->moveMember(CHANNEL_VOICE_LOBBY, "Saiu do Servidor."); // Move member to the voice lobby if not in-game anymore
+		if ($member_channel && !IsMemberAdmin($member)) $member->moveMember(CHANNEL_VOICE_DISCUSSION, "Saiu do Servidor."); // Move member to the voice lobby if not in-game anymore
 	}
 
 	$channel_admin->sendMessage($member->username . ($toggle ? " entrou no servidor." : " saiu do servidor."));
