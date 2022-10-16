@@ -230,7 +230,7 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 		return;
 	}
 
-	if ($member_channel) { // Member has a channel for themselves already
+	if ($member_channel) { // Member has a channel for themselves already, so let's edit that instead
 		// Grab the Channel object first
 		$member_channel = $interaction->guild->channels->get("id", $member_channel);
 
@@ -241,17 +241,28 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 			if ($part->type != 1) continue; // Ignore whatever is not a Member
 			if ($part->id == $member->id) continue; // Don't remove owner perms
 			
-			// $member_channel->overwrites->delete((string) $part->id);
-			$part->allow = 0;
+			$member_channel->overwrites->delete($part)->done(function() use ($member_channel) {
+				print("Member permission deleted from '$member_channel->name'\n");
+			}, function() {
+				print("Unable to execute Delete.\n");
+			});
+			// $part->allow = 0;
 		}
 
 		$interaction->guild->channels->save($member_channel, "Alterado Canal de Voz de '$member->username'")->done(
 			function (Channel $channel) use ($interaction, $member, $channel_members) {
-				print("Edited Voice Channel: '$channel->name'\n");
+				print("Edited Voice Channel: '$channel->name' Members: ");
+
+				foreach ($channel->overwrites as $part) {
+					if ($part->type != 1) continue; // Ignore whatever is not a Member
+					$member = $interaction->guild->members->get("id", $part->id);
+					if($member) print("$member->username ");					
+				}
+				print(PHP_EOL);
 
 				// Set permissions for each member and send them a message
 				foreach ($channel_members as $channel_member) {
-					$channel->setPermissions($channel_member, ['connect']);
+					$channel->setPermissions($channel_member, ['connect', 'use_vad']);
 					$channel_member->sendMessage("$member autorizou-te a entrar no Canal de Voz Privado '$channel->name'.");
 				}
 
@@ -274,15 +285,18 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 		// Submit the part
 		$interaction->guild->channels->save($new_channel, "Canal de Voz para '$member->username'")->done(
 			function (Channel $channel) use ($interaction, $member, $channel_members) {
-				print("Created a new Voice Channel: '$channel->name'\n");
+				print("Created a new Voice Channel: '$channel->name' Members: ");
 
 				// Set permissions for each member and send them a message
 				foreach ($channel_members as $channel_member) {
 					$channel->setPermissions($channel_member, ['connect', 'use_vad']);
 					$channel_member->sendMessage("$member autorizou-te a entrar no Canal de Voz Privado '$channel->name'.");
+					print("'$channel_member->username' ");					
 				}
+				print("Owner: ");
 
 				$channel->setPermissions($member, ['connect', 'use_vad', 'priority_speaker', 'mute_members']);
+				print("'$member->username'\n");
 				if ($member->getVoiceChannel()) $member->moveMember($channel->id); // Move the Member who executed the command.
 				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei o Canal $channel para ti e para os teus amigos."), true);
 			},
