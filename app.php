@@ -102,6 +102,16 @@ $discord->on('ready', function (Discord $discord) {
 			]
 		]
 	])); */
+	foreach($guild->commands as $command) {
+		if($command->type != 3) continue;
+
+		print("Deleting $command->name.\n");
+		$guild->commands->delete($command);
+	}
+	/* $guild->commands->save(new Command($discord, [
+		"name" => "Registar Feedback",
+		"type" => 3,
+	])); */
 });
 
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) {
@@ -112,6 +122,10 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 	include "chatJokes.php";
 
 	// echo "{$message->author->username}: {$message->content}", PHP_EOL;
+});
+
+$discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Discord $discord) {
+    var_dump($interaction->data);
 });
 
 $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord $discord) {
