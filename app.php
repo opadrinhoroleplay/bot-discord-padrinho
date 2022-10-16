@@ -207,7 +207,7 @@ $discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $newState, Di
 $discord->listenCommand('voz', function (Interaction $interaction) {
 	$member  = $interaction->member;
 	$options = $interaction->data->options;
-	$channel = GetMemberVoiceChannel($member);
+	$member_channel = GetMemberVoiceChannel($member);
 
 	// Get allowed members from interaction arguments
 	if (!preg_match_all('<@([0-9]+)>', $options["membros"]->value, $matches)) {
@@ -230,20 +230,26 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 		return;
 	}
 
-	if ($channel) { // Member has a channel for themselves already
+	if ($member_channel) { // Member has a channel for themselves already
 		// Grab the Channel object first
-		$channel = $interaction->guild->channels->get("id", $channel);
+		$member_channel = $interaction->guild->channels->get("id", $member_channel);
 
 		// Set a new name if one was provided
-		if($options["nome"]) $channel->name = slugify($options["nome"]->value);
+		if($options["nome"]) $member_channel->name = slugify($options["nome"]->value);
 
-		$interaction->guild->channels->save($channel, "Alterado Canal de Voz de '$member->username'")->done(
+		foreach ($member_channel->overwrites as $part) {
+			if ($part->type != 1) continue; // Ignore whatever is not a Member
+			if ($part->id == $member->id) continue; // Don't remove owner perms
+			
+			// $member_channel->overwrites->delete((string) $part->id);
+			$part->allow = 0;
+		}
+
+		$interaction->guild->channels->save($member_channel, "Alterado Canal de Voz de '$member->username'")->done(
 			function (Channel $channel) use ($interaction, $member, $channel_members) {
 				print("Edited Voice Channel: '$channel->name'\n");
 
 				// Set permissions for each member and send them a message
-				$channel->permissions = null;
-
 				foreach ($channel_members as $channel_member) {
 					$channel->setPermissions($channel_member, ['connect']);
 					$channel_member->sendMessage("$member autorizou-te a entrar no Canal de Voz Privado '$channel->name'.");
@@ -256,7 +262,6 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 				print("Impossivel editar canal privado.\n$error\n");
 			}
 		);
-
 	} else { // Member doesn't have a channel, so let's create one
 		// Create the Channel Part
 		$new_channel = $interaction->guild->channels->create([
@@ -273,11 +278,11 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 
 				// Set permissions for each member and send them a message
 				foreach ($channel_members as $channel_member) {
-					$channel->setPermissions($channel_member, ['connect']);
+					$channel->setPermissions($channel_member, ['connect', 'use_vad']);
 					$channel_member->sendMessage("$member autorizou-te a entrar no Canal de Voz Privado '$channel->name'.");
 				}
 
-				$channel->setPermissions($member, ['connect']);
+				$channel->setPermissions($member, ['connect', 'use_vad', 'priority_speaker', 'mute_members']);
 				if ($member->getVoiceChannel()) $member->moveMember($channel->id); // Move the Member who executed the command.
 				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei o Canal $channel para ti e para os teus amigos."), true);
 			},
