@@ -73,6 +73,11 @@ $discord = new Discord([
 $discord->on('ready', function (Discord $discord) {
 	global $guild, $channel_main, $channel_admin, $channel_log_traidores, $channel_log_ingame, $channel_log_voice, $channel_log_afk;
 
+	$discord->updatePresence($discord->factory(\Discord\Parts\User\Activity::class, [
+		'name' => 'vocês seus cabrões!',
+		'type' => Activity::TYPE_WATCHING
+	]));
+
 	echo "Bot is ready!", PHP_EOL;
 
 	$guild                 = $discord->guilds->get("id", GUILD_ID);
