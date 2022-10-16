@@ -237,42 +237,22 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 		// Set a new name if one was provided
 		if($options["nome"]) $member_channel->name = slugify($options["nome"]->value);
 
+		// Delete all members, minus owner
 		foreach ($member_channel->overwrites as $part) {
 			if ($part->type != 1) continue; // Ignore whatever is not a Member
 			if ($part->id == $member->id) continue; // Don't remove owner perms
 			
-			$member_channel->overwrites->delete($part)->done(function() use ($member_channel) {
-				print("Member permission deleted from '$member_channel->name'\n");
-			}, function() {
-				print("Unable to execute Delete.\n");
-			});
-			// $part->allow = 0;
+			$member_channel->overwrites->delete($part);
 		}
 
-		$interaction->guild->channels->save($member_channel, "Alterado Canal de Voz de '$member->username'")->done(
-			function (Channel $channel) use ($interaction, $member, $channel_members) {
-				print("Edited Voice Channel: '$channel->name' Members: ");
+		// Add new members
+		foreach ($channel_members as $channel_member) {
+			$member_channel->setPermissions($channel_member, ['connect', 'use_vad']);
+			$channel_member->sendMessage("$member autorizou-te a entrar no Canal de Voz Privado '$member_channel->name'.");
+		}
 
-				foreach ($channel->overwrites as $part) {
-					if ($part->type != 1) continue; // Ignore whatever is not a Member
-					$member = $interaction->guild->members->get("id", $part->id);
-					if($member) print("$member->username ");					
-				}
-				print(PHP_EOL);
-
-				// Set permissions for each member and send them a message
-				foreach ($channel_members as $channel_member) {
-					$channel->setPermissions($channel_member, ['connect', 'use_vad']);
-					$channel_member->sendMessage("$member autorizou-te a entrar no Canal de Voz Privado '$channel->name'.");
-				}
-
-				if ($member->getVoiceChannel()) $member->moveMember($channel->id); // Move the Member who executed the command.
-				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Canal $channel alterado."), true);
-			},
-			function ($error) {
-				print("Impossivel editar canal privado.\n$error\n");
-			}
-		);
+		if ($member->getVoiceChannel()) $member->moveMember($member_channel->id); // Move the Member who executed the command.
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Alteraste o teu Canal de Voz Privado: $member_channel."), true);
 	} else { // Member doesn't have a channel, so let's create one
 		// Create the Channel Part
 		$new_channel = $interaction->guild->channels->create([
