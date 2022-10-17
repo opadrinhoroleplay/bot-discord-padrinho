@@ -26,6 +26,8 @@ define("ROLE_INGAME", 1020385919695585311);
 
 define("SERVER_NAME", $config->server->name);
 
+use Discord\Builders\Components\ActionRow;
+use Discord\Builders\Components\TextInput;
 use React\EventLoop\Loop;
 
 use Discord\Parts\Channel\Channel;
@@ -33,6 +35,8 @@ use Discord\Parts\Interactions\Command\Command;
 use Discord\Parts\Permissions\ChannelPermission;
 use Discord\Builders\MessageBuilder;
 use Discord\Discord;
+use Discord\Helpers\Collection;
+use Discord\Parts\Channel\Forum\Tag;
 use Discord\Parts\Channel\Message;
 use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\User\Activity;
@@ -43,6 +47,10 @@ use Discord\Repository\Guild\MemberRepository;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 
+use Discord\Parts\Part;
+use Discord\Parts\Thread\Thread;
+use Discord\Parts\WebSockets\MessageReaction;
+use Discord\WebSockets\Events\ThreadCreate;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 
@@ -74,6 +82,7 @@ $discord->on('ready', function (Discord $discord) {
 	global $guild, $channel_main, $channel_admin, $channel_log_traidores, $channel_log_ingame, $channel_log_voice, $channel_log_afk;
 
 	echo "Bot is ready!", PHP_EOL;
+
 
 	$guild                 = $discord->guilds->get("id", GUILD_ID);
 	$channel_admin         = $guild->channels->get("id", CHANNEL_ADMIN);
@@ -133,7 +142,47 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 			print($message->content . PHP_EOL);
 		}
 
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Feedback criado com Sucesso."), true);
+		$author = $message->author;
+
+		if(strlen($message->content) < 100) {
+			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Opá achas que isso é um feedback de jeito? Pega em algo com mais conteúdo caralho."), true);
+			return;
+		}
+
+		$interaction->showModal("Registar Feedback de $author->username", "feedback", [
+			ActionRow::new()->addComponent(
+				TextInput::new("Título", TextInput::STYLE_SHORT, "title")
+				->setRequired(true)
+				->setPlaceholder("Exemplo: Equilibrar os preços dos Veículos.")
+				->setMinLength(10)
+				->setMaxLength(100)
+			),
+			ActionRow::new()->addComponent(
+				TextInput::new("Descrição", TextInput::STYLE_PARAGRAPH, "message")
+				->setRequired(true)
+				->setValue($message->content)
+				->setMinLength(100)
+			)
+			], function(Interaction $interaction, $components) use ($author) {
+				// Create the forum thread
+				$forum = $interaction->guild->channels->get("id", 1019697596555612160);
+
+				$forum->startThread([
+					"name" => $components["title"]->value,
+					"message" => MessageBuilder::new()->setContent("Por $author:\n>>> {$components["message"]->value}"),
+					"applied_tags" => ["1031013313594802237"]
+				])->done(function($thread) {
+					$first_message = $thread->messages->get("id", $thread->last_message_id);
+					$first_message->react(":thumbsdown:");
+
+					var_dump($first_message);
+				});
+				
+				// Add reactions?
+				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Feedback criado com Sucesso."), true);
+			}
+		);
+
 	}
 });
 
