@@ -1,4 +1,4 @@
-Aabafa-a-palhinha
+﻿abafa-a-palhinha
 abécula
 abelhudo
 abichanado
@@ -40,7 +40,7 @@ avaro
 ave rara
 aventesma
 azeiteiro
-Bbacoco
+bacoco
 bácoro
 badalhoca
 badameco
@@ -99,7 +99,7 @@ bufo
 burgesso
 burlão
 burro
-Ccabeça de abóbora
+cabeça de abóbora
 cabeça-de-alho-chôcho
 cabeça-de-vento
 cabeça no ar
@@ -187,7 +187,7 @@ cromaço
 criminoso
 cunanas
 cusca
-Ddebochado
+debochado
 delambida
 delinquente
 demagogo
@@ -227,7 +227,7 @@ doido varrido
 dondoca
 doutor da mula russa
 drogado
-Eegoísta
+egoísta
 embirrento
 embusteiro
 empata-fodas
@@ -264,7 +264,7 @@ estropício
 estulto
 estúpido
 estupor
-Ffaccioso
+faccioso
 facínora
 fala-barato
 falhado
@@ -306,7 +306,7 @@ fufa
 fuinha
 fura-greves
 fútil
-Ggabarola
+gabarola
 gabiru
 galdéria
 galinha choca
@@ -326,7 +326,7 @@ grosseiro
 grotesco
 grunho
 guedelhudo
-Hherege
+herege
 hipócrita
 histérica
 Iidiota
@@ -357,9 +357,9 @@ intolerante
 intriguista
 inútil
 irritante
-Jjavardo
+javardo
 judeu
-Llabrego
+labrego
 labroste
 lacaio
 ladrão
@@ -386,7 +386,7 @@ lontra
 lorpa
 louco
 lunático
-Mmá rês
+má rês
 madraço
 mafioso
 maganão
@@ -464,7 +464,7 @@ mostrengo
 mouco
 mula
 múmia
-Nnababo
+nababo
 nabo
 não-fode-nem-sai-de-cima
 não-tens-onde-cair-morto
@@ -480,7 +480,7 @@ ninfomaníaca
 nódoa
 nojento
 nulidade
-Oobcecado
+obcecado
 obnóxio
 obstinado
 obtuso
@@ -490,7 +490,7 @@ oportunista
 ordinário
 orelhas-de-abano
 otário
-Ppacóvio
+pacóvio
 padreca
 palerma
 palhaço
@@ -569,12 +569,12 @@ pulha
 punheteiro
 puta
 putéfia
-Qquadrilheira
+quadrilheira
 quatro-olhos
 quebra-bilhas
 queixinhas
 quezilento
-Rrabeta
+rabeta
 rabugento
 racista
 radical
@@ -669,10 +669,10 @@ trombalazanas
 trombeiro
 trombudo
 trouxa
-Uunhas de fome
+unhas de fome
 untuoso
 urso
-Vvaca gorda
+vaca gorda
 vadio
 vagabundo
 vaidoso
@@ -692,9 +692,9 @@ vilão
 vingativo
 vira-casacas
 Xxenófobo
-Xé-xé
+xé-xé
 xico esperto
-Zarolho
+zarolho
 zé-ninguém
 zelota
 zero à esquerda
