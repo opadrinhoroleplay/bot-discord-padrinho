@@ -350,7 +350,7 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 		$new_channel = $interaction->guild->channels->create([
 			"parent_id" => 1030787112628400198, // 'Voz' Category
 			"name" => $options["nome"] ? slugify($options["nome"]->value) : generateWhatThreeWords(),
-			"type" => Channel::TYPE_VOICE,
+			"type" => Channel::TYPE_GUILD_VOICE,
 			"bitrate" => 96000
 		]);
 
