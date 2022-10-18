@@ -193,17 +193,22 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 			}
 		);
 	} elseif($interaction->data->id = 1032023987250794566) {
+		$nuances = ["foda o focinho", "foda os cornos", "leves um biqueiro nos cornos", "te abafe todo", "meta o colhão na virilha"];
 		$insults = file_get_contents("insults.txt");
 		$insults = explode("\n", $insults);
 
-		do {$insult = $insults[rand(0, count($insults)-1)];
-		print($insult);
-		} while(substr($insult, -1) == "a");
+		/* do {
+			$insult = $insults[rand(0, count($insults)-1)];
+			print($insult);
+		} while(substr($insult, -1) == "a"); */
+		$insult = strtolower(trim($insults[rand(0, count($insults)-1)]));
+		$nuance = $nuances[rand(0, count($nuances)-1)];
 
 		$message = $interaction->data->resolved->messages->first();
-		$message->reply("Tu cala-te seu $insult do caralho!");
+		$message->reply("Tu cala-te $insult do caralho, antes que $nuance!");
 
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Feito."), true);
+		$interaction->acknowledgeWithResponse();
+		$interaction->deleteOriginalResponse();
 	}
 });
 
