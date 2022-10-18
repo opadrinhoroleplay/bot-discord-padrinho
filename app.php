@@ -227,7 +227,7 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	}
 
 	// Handle game sessions
-	$game = $presence->activities->filter(fn ($activity) => $activity->type == Activity::TYPE_PLAYING)->first();
+	$game = $presence->activities->filter(fn ($activity) => $activity->type == Activity::TYPE_GAME)->first();
 
 	if ($game) { // Playing a game
 		// $game_sessions->open($member, $game);
