@@ -191,6 +191,8 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 					print("Suggestion '$thread->name' created successfully.\n");
 					$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Sugestão $thread criado com sucesso."), true);
 				});
+
+				$interaction->acknowledge();
 			}
 		);
 	}
@@ -232,7 +234,7 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	}
 
 	// Handle game sessions
-	$game = $presence->activities->filter(fn ($activity) => $activity->type == Activity::TYPE_PLAYING)->first();
+	$game = $presence->activities->filter(fn ($activity) => $activity->type == Activity::TYPE_GAME)->first();
 
 	if ($game) { // Playing a game
 		// $game_sessions->open($member, $game);
