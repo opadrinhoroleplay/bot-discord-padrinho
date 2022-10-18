@@ -26,6 +26,8 @@ define("ROLE_INGAME", 1020385919695585311);
 
 define("SERVER_NAME", $config->server->name);
 
+use Discord\Builders\Components\ActionRow;
+use Discord\Builders\Components\TextInput;
 use React\EventLoop\Loop;
 
 use Discord\Parts\Channel\Channel;
@@ -33,6 +35,8 @@ use Discord\Parts\Interactions\Command\Command;
 use Discord\Parts\Permissions\ChannelPermission;
 use Discord\Builders\MessageBuilder;
 use Discord\Discord;
+use Discord\Helpers\Collection;
+use Discord\Parts\Channel\Forum\Tag;
 use Discord\Parts\Channel\Message;
 use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\User\Activity;
@@ -43,6 +47,10 @@ use Discord\Repository\Guild\MemberRepository;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 
+use Discord\Parts\Part;
+use Discord\Parts\Thread\Thread;
+use Discord\Parts\WebSockets\MessageReaction;
+use Discord\WebSockets\Events\ThreadCreate;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 
@@ -64,10 +72,11 @@ $logger = new Logger('DiscordPHP');
 $logger->pushHandler(new StreamHandler('php://stdout', Monolog\Level::Info));
 
 $discord = new Discord([
-	'logger'		 => $logger,
+	'logger'         => $logger,
 	'token'          => $config->discord->token,
 	'intents'        => Intents::getDefaultIntents() | Intents::GUILD_MEMBERS | Intents::GUILD_PRESENCES,
-	'loadAllMembers' => false
+	'loadAllMembers' => false,
+	'storeMessages'  => true
 ]);
 
 $discord->on('ready', function (Discord $discord) {
@@ -80,6 +89,7 @@ $discord->on('ready', function (Discord $discord) {
 
 	echo "Bot is ready!", PHP_EOL;
 
+
 	$guild                 = $discord->guilds->get("id", GUILD_ID);
 	$channel_admin         = $guild->channels->get("id", CHANNEL_ADMIN);
 	$channel_main          = $guild->channels->get("id", CHANNEL_MAIN);
@@ -89,7 +99,7 @@ $discord->on('ready', function (Discord $discord) {
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
 	// include "registerCommands.php";
-	/* $guild->commands->save(new Command($discord, [
+	/* $discord->application->commands->save(new Command($discord, [
 		'name' => 'voz', 
 		'description' => 'Cria/edita um Canal de Voz Privado, para ti e para os teus amigos.',
 		"options" => [
@@ -107,6 +117,20 @@ $discord->on('ready', function (Discord $discord) {
 			]
 		]
 	])); */
+	/* foreach($guild->commands as $command) {
+		if($command->type != 3) continue;
+
+		print("Deleting $command->name.\n");
+		$guild->commands->delete($command);
+	} */
+
+	// $discord->application->commands->delete("1031904535381278721");
+	// $guild->commands->delete("1030821837397041182");
+
+	/* $discord->application->commands->save(new Command($discord, [
+		"name" => "Criar Sugestão",
+		"type" => 3,
+	])); */
 });
 
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) {
@@ -117,6 +141,59 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 	include "chatJokes.php";
 
 	// echo "{$message->author->username}: {$message->content}", PHP_EOL;
+});
+
+$discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Discord $discord) {
+	if($interaction->data->id == 1031932276717662260) { // Criar Feedback
+		$data = $interaction->data->resolved;
+
+		foreach ($data->messages as $message) {
+			/* print($message->author->username . PHP_EOL);
+			print($message->content . PHP_EOL); */
+		}
+
+		// print_r($data->messages[0]);
+
+		$author = $message->author;
+
+		if(strlen($message->content) < 50) {
+			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Opá achas que isso é uma sugestão de jeito? Pega em algo com mais conteúdo caralho."), true);
+			return;
+		}
+
+		$interaction->showModal("Criar Sugestão para $author->username", "feedback", [
+			ActionRow::new()->addComponent(
+				TextInput::new("Título", TextInput::STYLE_SHORT, "title")
+				->setRequired(true)
+				->setPlaceholder("Exemplo: Equilibrar os preços dos Veículos.")
+				->setMinLength(10)
+				->setMaxLength(100)
+			),
+			ActionRow::new()->addComponent(
+				TextInput::new("Sugestão", TextInput::STYLE_PARAGRAPH, "message")
+				->setRequired(true)
+				->setValue($message->content)
+				->setMinLength(50)
+			)
+			], function(Interaction $interaction, $components) use ($author) {
+				// Create the forum thread
+				$forum = $interaction->guild->channels->get("id", 1019697596555612160);
+
+				$forum->startThread([
+					"name" => $components["title"]->value,
+					"message" => MessageBuilder::new()->setContent(
+						"Clica no 👍🏻 se concordas com esta sugestão e deixa o teu comentário. Valorizamos a tua opinião!\n\n"
+						."Sugestão feita por $author:\n>>> {$components["message"]->value}"
+					),
+					"applied_tags" => ["1031013313594802237"]
+				])->done(function($thread) use ($interaction) {
+					// $thread->sendMessage("Clica no 👍🏻 se concordas com esta sugestão e deixa o teu comentário. Valorizamos a tua opinião!");
+					print("Suggestion '$thread->name' created successfully.\n");
+					$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Sugestão $thread criado com sucesso."), true);
+				});
+			}
+		);
+	}
 });
 
 $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord $discord) {
@@ -263,7 +340,7 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 		$new_channel = $interaction->guild->channels->create([
 			"parent_id" => 1030787112628400198, // 'Voz' Category
 			"name" => $options["nome"] ? slugify($options["nome"]->value) : generateWhatThreeWords(),
-			"type" => Channel::TYPE_VOICE,
+			"type" => Channel::TYPE_GUILD_VOICE,
 			"bitrate" => 96000
 		]);
 

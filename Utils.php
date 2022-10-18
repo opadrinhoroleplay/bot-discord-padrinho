@@ -29,15 +29,12 @@ function getRandomWord(): string|null {
 	$words = explode("\n", $words);
 
 	do {
-		$word = $words[rand(0, count($words))];
-	} while (str_contains($word, "-") || strlen($word) >= 8);
+		$word = $words[rand(0, count($words)-1)];
+	} while (str_contains($word, "-") || strlen($word) >= 8); // Portuguese words can have dashes, so we'll just avoid them in this scenario
 
 	return strtolower($word);
 }
 
 function generateWhatThreeWords(): string {
-	$string = sprintf("%s-%s-%s", getRandomWord(), getRandomWord(), getRandomWord());
-	// print($string);
-
-	return $string;
+	return sprintf("%s-%s-%s", getRandomWord(), getRandomWord(), getRandomWord());
 }
