@@ -197,10 +197,6 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 		$insults = file_get_contents("insults.txt");
 		$insults = explode("\n", $insults);
 
-		/* do {
-			$insult = $insults[rand(0, count($insults)-1)];
-			print($insult);
-		} while(substr($insult, -1) == "a"); */
 		$insult = strtolower(trim($insults[rand(0, count($insults)-1)]));
 		$nuance = $nuances[rand(0, count($nuances)-1)];
 
