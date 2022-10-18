@@ -72,10 +72,11 @@ $logger = new Logger('DiscordPHP');
 $logger->pushHandler(new StreamHandler('php://stdout', Monolog\Level::Info));
 
 $discord = new Discord([
-	'logger'		 => $logger,
+	'logger'         => $logger,
 	'token'          => $config->discord->token,
 	'intents'        => Intents::getDefaultIntents() | Intents::GUILD_MEMBERS | Intents::GUILD_PRESENCES,
-	'loadAllMembers' => false
+	'loadAllMembers' => false,
+	'storeMessages'  => true
 ]);
 
 $discord->on('ready', function (Discord $discord) {
@@ -93,7 +94,7 @@ $discord->on('ready', function (Discord $discord) {
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
 	// include "registerCommands.php";
-	$discord->application->commands->save(new Command($discord, [
+	/* $discord->application->commands->save(new Command($discord, [
 		'name' => 'voz', 
 		'description' => 'Cria/edita um Canal de Voz Privado, para ti e para os teus amigos.',
 		"options" => [
@@ -110,7 +111,7 @@ $discord->on('ready', function (Discord $discord) {
 				"required"    => false
 			]
 		]
-	]));
+	])); */
 	/* foreach($guild->commands as $command) {
 		if($command->type != 3) continue;
 
@@ -118,13 +119,13 @@ $discord->on('ready', function (Discord $discord) {
 		$guild->commands->delete($command);
 	} */
 
-	// $discord->application->commands->delete("1031903295503077397");
+	// $discord->application->commands->delete("1031904535381278721");
 	// $guild->commands->delete("1030821837397041182");
 
-	$discord->application->commands->save(new Command($discord, [
-		"name" => "Criar Feedback",
+	/* $discord->application->commands->save(new Command($discord, [
+		"name" => "Criar Sugestão",
 		"type" => 3,
-	]));
+	])); */
 });
 
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) {
@@ -138,22 +139,24 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 });
 
 $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Discord $discord) {
-	if($interaction->data->id == 1031219671908745246) {
+	if($interaction->data->id == 1031932276717662260) { // Criar Feedback
 		$data = $interaction->data->resolved;
 
 		foreach ($data->messages as $message) {
-			print($message->author->username . PHP_EOL);
-			print($message->content . PHP_EOL);
+			/* print($message->author->username . PHP_EOL);
+			print($message->content . PHP_EOL); */
 		}
+
+		// print_r($data->messages[0]);
 
 		$author = $message->author;
 
-		if(strlen($message->content) < 100) {
-			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Opá achas que isso é um feedback de jeito? Pega em algo com mais conteúdo caralho."), true);
+		if(strlen($message->content) < 50) {
+			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Opá achas que isso é uma sugestão de jeito? Pega em algo com mais conteúdo caralho."), true);
 			return;
 		}
 
-		$interaction->showModal("Registar Feedback de $author->username", "feedback", [
+		$interaction->showModal("Criar Sugestão para $author->username", "feedback", [
 			ActionRow::new()->addComponent(
 				TextInput::new("Título", TextInput::STYLE_SHORT, "title")
 				->setRequired(true)
@@ -162,10 +165,10 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 				->setMaxLength(100)
 			),
 			ActionRow::new()->addComponent(
-				TextInput::new("Descrição", TextInput::STYLE_PARAGRAPH, "message")
+				TextInput::new("Sugestão", TextInput::STYLE_PARAGRAPH, "message")
 				->setRequired(true)
 				->setValue($message->content)
-				->setMinLength(100)
+				->setMinLength(50)
 			)
 			], function(Interaction $interaction, $components) use ($author) {
 				// Create the forum thread
@@ -173,20 +176,18 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 
 				$forum->startThread([
 					"name" => $components["title"]->value,
-					"message" => MessageBuilder::new()->setContent("Por $author:\n>>> {$components["message"]->value}"),
+					"message" => MessageBuilder::new()->setContent(
+						"Clica no 👍🏻 se concordas com esta sugestão e deixa o teu comentário. Valorizamos a tua opinião!\n\n"
+						."Sugestão feita por $author:\n>>> {$components["message"]->value}"
+					),
 					"applied_tags" => ["1031013313594802237"]
-				])->done(function($thread) {
-					$first_message = $thread->messages->get("id", $thread->last_message_id);
-					$first_message->react(":thumbsdown:");
-
-					var_dump($first_message);
+				])->done(function($thread) use ($interaction) {
+					// $thread->sendMessage("Clica no 👍🏻 se concordas com esta sugestão e deixa o teu comentário. Valorizamos a tua opinião!");
+					print("Suggestion '$thread->name' created successfully.\n");
+					$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Sugestão $thread criado com sucesso."), true);
 				});
-				
-				// Add reactions?
-				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Feedback criado com Sucesso."), true);
 			}
 		);
-
 	}
 });
 
