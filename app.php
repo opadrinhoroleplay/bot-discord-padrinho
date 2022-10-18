@@ -123,7 +123,8 @@ $discord->on('ready', function (Discord $discord) {
 	// $guild->commands->delete("1030821837397041182");
 
 	/* $discord->application->commands->save(new Command($discord, [
-		"name" => "Criar Sugestão",
+		"custom_id" => "shutup",
+		"name" => "Mandar calar",
 		"type" => 3,
 	])); */
 });
@@ -140,14 +141,10 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 
 $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Discord $discord) {
 	if($interaction->data->id == 1031932276717662260) { // Criar Feedback
+		
 		$data = $interaction->data->resolved;
 
-		foreach ($data->messages as $message) {
-			/* print($message->author->username . PHP_EOL);
-			print($message->content . PHP_EOL); */
-		}
-
-		// print_r($data->messages[0]);
+		$message = $data->messages->first();
 
 		$author = $message->author;
 
@@ -190,6 +187,18 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 				$interaction->acknowledge();
 			}
 		);
+	} elseif($interaction->data->id = 1032023987250794566) {
+		$insults = file_get_contents("insults.txt");
+		$insults = explode("\n", $insults);
+
+		do {$insult = $insults[rand(0, count($insults)-1)];
+		print($insult);
+		} while(substr($insult, -1) == "a");
+
+		$message = $interaction->data->resolved->messages->first();
+		$message->reply("Tu cala-te seu $insult do caralho!");
+
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Feito."), true);
 	}
 });
 
