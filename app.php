@@ -186,6 +186,8 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 					print("Suggestion '$thread->name' created successfully.\n");
 					$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Sugestão $thread criado com sucesso."), true);
 				});
+
+				$interaction->acknowledge();
 			}
 		);
 	}
