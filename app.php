@@ -93,7 +93,7 @@ $discord->on('ready', function (Discord $discord) {
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
 	// include "registerCommands.php";
-	/* $guild->commands->save(new Command($discord, [
+	$discord->application->commands->save(new Command($discord, [
 		'name' => 'voz', 
 		'description' => 'Cria/edita um Canal de Voz Privado, para ti e para os teus amigos.',
 		"options" => [
@@ -110,17 +110,21 @@ $discord->on('ready', function (Discord $discord) {
 				"required"    => false
 			]
 		]
-	])); */
+	]));
 	/* foreach($guild->commands as $command) {
 		if($command->type != 3) continue;
 
 		print("Deleting $command->name.\n");
 		$guild->commands->delete($command);
 	} */
-	/* $guild->commands->save(new Command($discord, [
-		"name" => "Registar Feedback",
+
+	// $discord->application->commands->delete("1031903295503077397");
+	// $guild->commands->delete("1030821837397041182");
+
+	$discord->application->commands->save(new Command($discord, [
+		"name" => "Criar Feedback",
 		"type" => 3,
-	])); */
+	]));
 });
 
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) {
