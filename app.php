@@ -2,10 +2,13 @@
 declare(strict_types = 1);
 
 include "vendor/autoload.php";
-include "Utils.php";
 include "config.php";
+include "Utils.php";
 include "language.php";
 include "GameSessions.class.php";
+include "TimeKeeping.php";
+
+// date_default_timezone_set('Europe/Lisbon');
 
 define("GUILD_ID", 519268261372755968);
 
@@ -89,7 +92,6 @@ $discord->on('ready', function (Discord $discord) {
 
 	echo "Bot is ready!", PHP_EOL;
 
-
 	$guild                 = $discord->guilds->get("id", GUILD_ID);
 	$channel_admin         = $guild->channels->get("id", CHANNEL_ADMIN);
 	$channel_main          = $guild->channels->get("id", CHANNEL_MAIN);
@@ -97,6 +99,25 @@ $discord->on('ready', function (Discord $discord) {
 	$channel_log_afk       = $guild->channels->get("id", CHANNEL_LOG_AFK);
 	$channel_log_ingame    = $guild->channels->get("id", CHANNEL_LOG_INGAME);
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
+
+	TimeKeeping::hour(function($hour) use (
+		$channel_admin
+		) {
+		switch ($hour) {
+			case 00:
+				$insult = getInsult();
+				$channel_admin->sendMessage("Pessoal o <@267082772667957250> saiu agora do trabalho. Toca a chatear esse $insult.");
+				break;
+			case 8:
+				$channel_admin->sendMessage("<@&929172055977508924> São agora 8 da manhã seus cabrões. Toca a acordar!\nQuem é que vai marcar presença hoje? Cliquem no 🖐🏻.")->done(function($message) {
+					$message->react("🖐🏻");
+				});
+				break;
+			default:
+				$channel_admin->sendMessage("São agora " . date("H:i"));
+				break;
+		}
+	});
 
 	// include "registerCommands.php";
 	/* $discord->application->commands->save(new Command($discord, [
@@ -194,17 +215,10 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 		);
 	} elseif($interaction->data->id = 1032023987250794566) {
 		$nuances = ["foda o focinho", "foda os cornos", "leves um biqueiro nos cornos", "te abafe todo", "meta o colhão na virilha"];
-		$insults = file_get_contents("insults.txt");
-		$insults = explode("\n", $insults);
-
-		/* do {
-			$insult = $insults[rand(0, count($insults)-1)];
-			print($insult);
-		} while(substr($insult, -1) == "a"); */
-		$insult = strtolower(trim($insults[rand(0, count($insults)-1)]));
 		$nuance = $nuances[rand(0, count($nuances)-1)];
 
 		$message = $interaction->data->resolved->messages->first();
+		$insult = getInsult();
 		$message->reply("Tu cala-te $insult do caralho, antes que $nuance!");
 
 		$interaction->acknowledgeWithResponse();
