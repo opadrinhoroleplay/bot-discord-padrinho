@@ -38,3 +38,10 @@ function getRandomWord(): string|null {
 function generateWhatThreeWords(): string {
 	return sprintf("%s-%s-%s", getRandomWord(), getRandomWord(), getRandomWord());
 }
+
+function getInsult() {
+	$insults = file_get_contents("insults.txt");
+	$insults = explode("\n", $insults);
+
+	return strtolower(trim($insults[rand(0, count($insults)-1)]));
+}
