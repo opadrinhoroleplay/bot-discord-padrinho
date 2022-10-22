@@ -66,6 +66,7 @@ $channel_log_traidores = (object) NULL;
 $channel_log_ingame    = (object) NULL;
 $channel_log_voice     = (object) NULL;
 $channel_log_afk       = (object) NULL;
+$rollcall_message_id = null;
 
 $db = new mysqli("p:{$config->database->host}", $config->database->user, $config->database->pass, $config->database->database);
 
@@ -109,12 +110,16 @@ $discord->on('ready', function (Discord $discord) {
 				$channel_admin->sendMessage("Pessoal o <@267082772667957250> saiu agora do trabalho. Toca a chatear esse $insult.");
 				break;
 			case 8:
-				$channel_admin->sendMessage("<@&929172055977508924> São agora 8 da manhã seus cabrões. Toca a acordar!\nQuem é que vai marcar presença hoje? Cliquem no 🖐🏻.")->done(function($message) {
+				$channel_admin->sendMessage("<@&929172055977508924> São agora 8 da manhã seus cabrões. Toca a acordar!\nQuem é que vai marcar presença hoje? Cliquem no 🖐🏻.")->done(function(Message $message) {
+					global $rollcall_message_id;
+
 					$message->react("🖐🏻");
+
+					$rollcall_message_id = $message->id;
 				});
 				break;
 			default:
-				$channel_admin->sendMessage("São agora " . date("H:i"));
+				// $channel_admin->sendMessage("São agora " . date("H:i"));
 				break;
 		}
 	});
@@ -165,6 +170,31 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 	// echo "{$message->author->username}: {$message->content}", PHP_EOL;
 });
 
+$discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, Discord $discord) {
+	if($reaction->member->user->bot) return;
+
+	global $channel_admin, $rollcall_message_id;
+
+	if($reaction->message_id == $rollcall_message_id) {
+		if($reaction->emoji->name != "🖐🏻") {
+			$reaction->delete()->done(function () use ($channel_admin, $reaction) {
+				$channel_admin->sendMessage("$reaction->member para quieto fdp.", );
+			});
+			return;
+		}
+
+		$replies = [
+			"%s ok ok, vou querer ver trabalho então",
+			"Fantástico %s! Espero ver trabalho feito daqui a umas horas",
+			"Certo %s, fala aí com o resto do pessoal para ver quais são as tarefas para hoje",
+			"Ok %s, vamos a isso então! Toca a mostrar trabalho",
+			"Tranquilo %s, vamos lá meter mãos a obra"
+		];
+
+		$channel_admin->sendMessage(sprintf($replies[rand(0, count($replies)-1)] . ". :handshake:", $reaction->member));
+	}
+});
+
 $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Discord $discord) {
 	if($interaction->data->id == 1031932276717662260) { // Criar Feedback
 		
@@ -204,8 +234,7 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 						."Sugestão feita por $author:\n>>> {$components["message"]->value}"
 					),
 					"applied_tags" => ["1031013313594802237"]
-				])->done(function($thread) use ($interaction) {
-					// $thread->sendMessage("Clica no 👍🏻 se concordas com esta sugestão e deixa o teu comentário. Valorizamos a tua opinião!");
+				])->done(function(Thread $thread) use ($interaction) {
 					print("Suggestion '$thread->name' created successfully.\n");
 					$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Sugestão $thread criado com sucesso."), true);
 				});
