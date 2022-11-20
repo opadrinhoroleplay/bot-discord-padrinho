@@ -1,0 +1,119 @@
+[
+    {
+        "pergunta": "O que significa o termo \"Combat Logging\"?",
+        "respostas": [
+            "Sair do jogo propositadamente a meio de uma interação com outro Jogador",
+            "Entrar no jogo só para combater ignorando todos os procedimentos do Roleplay",
+            "Comprar armas sem pagar",
+            "Ver as logs de combate"
+        ]
+    },
+    {
+        "pergunta": "O que signifca fazer \"Dark Roleplay\"?",
+        "perguntas": [
+            "Assediar, Abusar, ter Preconceitos ou fazer comentários Racistas/Homofóbicos em Roleplay",
+            "Fazer um personagem do sexo oposto com o objetivo de tirar partido disso",
+            "Fazer BDSM em espaços públicos ou de trabalho",
+            "Forçar outro Jogador a meter um saco na cabeça e jogar às escuras"
+        ]
+    },
+    {
+        "pergunta": "O que fazer se vires alguém a abusar de algum bug? (Bug Exploit)",
+        "respostas": [
+            "Informar um Administrador via Servidor ou Discord",
+            "Ignorar",
+            "Perguntar como se faz",
+            "Fazer um vídeo no Youtube a explicar como tirar partido disso"
+        ]
+    },
+    {
+        "pergunta": "Compraste uma mota nova e ao testá-la tiveste um acidente a mais de 150km/h. O teu personagem saltou da mota mas não ficou totalmente incapacitado. Qual o procedimento correto?",
+        "respostas": [
+            "Como não fiquei incapacitado posso chamar um amigo ou serviços de emergência para me darem o tratamento devido",
+            "Entrar num culto de aleijados",
+            "Olhar à volta para saber se estou livre de perigo para usar um Med Kit em segurança",
+            "Procurar a mota e pedir a um amigo ou mecânico para transportar a mota até uma oficina"
+        ]
+    },
+    {
+        "pergunta": "Quando é permitido comunicar \"Fora de Personagem\" (voz/texto), ou seja deixar de actuar como a tua personagem?",
+        "respostas": [
+            "Quando autorizado por um Administrador",
+            "Quando sei que alguém é Administrador e estamos sozinhos",
+            "Quando voltar do Limbo",
+            "Quando chamar um Deus numa Igreja"
+        ]
+    },
+    {
+        "pergunta": "Numa fuga à Policia deparas-te com uma curva mais apertada e sabes que não vais conseguir fazê-la sem bater. Qual o procedimento correto?",
+        "respostas": [
+            "Faço Pain Auditivo (ex: gritar) e continuo com a fuga",
+            "Ofender a parede",
+            "Praticar o Combat Logging",
+            "Chamar um Administrador, os policias não fizeram \"Fear\" da parede"
+        ]
+    },
+    {
+        "pergunta": "Um estranho aborda-te, e por ter pouca experiencia utiliza palavras proíbidas em Roleplay. Um terceiro jogador aproxima-se casualmente mas sei que é Administrador. Qual o procedimento correto?",
+        "respostas": [
+            "Ativar o modo Passivo e educar o estranho discretamente com assistência de um Administrador",
+            "Denunciar instantaneamente ao Mod que se aproxima",
+            "Tirar clip para avaliação e punição",
+            "Chamar o Administrador e dar ideias para o servidor"
+        ]
+    },
+    {
+        "pergunta": "Tens ideias construtivas para o servidor. Onde as podes sugerir?",
+        "respostas": [
+            "Criar um tópico no Fórum do Discord, com a tag \"Sugestão\"",
+            "Assim que encontrar um Administrador no servidor",
+            "Aproveitar um Ticket para mudar de assunto",
+            "Ir a uma igreja e chamar por um Deus"
+        ]
+    },
+    {
+        "pergunta": "Estou no Servidor com um amigo enquanto estamos em chamada no Discord. O que devo fazer?",
+        "respostas": [
+            "Não falar sobre aspectos do Roleplay das vossas personagens que possam eventualmente causar Meta-Jogo (\"Meta-Gaming\"), que dá expulsão permanente.",
+            "Ser egoísta e fazer roleplay apenas pelo Discord",
+            "Não dar mute no Discord para toda a gente ouvir o eco da nossa conversa",
+            "Utilizar o Discord apenas para falar com o meu amigo"
+        ]
+    },
+    {
+        "pergunta": "Para que servem os comandos de interação por texto? [/me]",
+        "respostas": [
+            "Para informar de uma ação que não consigo expressar visualmente no jogo",
+            "Para comunicar o meu ID sem interromper o Roleplay",
+            "Para pular mecânicas de um sistema",
+            "Para comunicar sem fazer barulho"
+        ]
+    },
+    {
+        "pergunta": "O que entendes por Fail-RP?",
+        "respostas": [
+            "Ignorar as interações relacionadas com uma mecânica de jogo que estás a executar",
+            "Fazer de conta que estás morto",
+            "Fazer assaltos de dia em espaços abertos",
+            "Conduzir a alta velocidade sem utilizar o cinto de segurança"
+        ]
+    },
+    {
+        "pergunta": "Há uma área cinzenta no conceito de Cop Baiting, que tipo de Cop Baiting pode ser praticado?",
+        "respostas": [
+            "Provocando um membro dos Serviços de Emergência físicamente quando não está em Missão",
+            "Fazer chamadas de emergência desnecessáriamente, de forma a bloquear a linha",
+            "Fingir estar magoado para interagir com uma Enfermeira",
+            "Bloquear um Policia em Serviço de Emergência"
+        ]
+    },
+    {
+        "pergunta": "O que entendes por Fake Hostage?",
+        "perguntas": [
+            "Encriminar um estranho para próprio benefício",
+            "Chamar a policia para um Fake Robbery",
+            "Escrever /me atar com uma corda para prender outro jogador",
+            "Combinar um assalto com um Refém"
+        ]
+    }
+]
