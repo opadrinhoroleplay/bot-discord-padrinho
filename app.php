@@ -191,10 +191,56 @@ $discord->on('ready', function (Discord $discord) {
 				});
 				break;
 			default:
+				// create a random joke
+
+
+				function getInsult() {
+					$ch = curl_init();
+			
+					curl_setopt($ch, CURLOPT_URL, "https://evilinsult.com/generate_insult.php?lang=pt&type=json");
+					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+					curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+					curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+			
+					$result = curl_exec($ch);
+					$result = json_decode($result);
+			
+					return $result;
+				}
+				$insult = getInsult();
+				$channel_main->sendMessage("**$insult->insult** - *$insult->comment*")->done(function(Message $message) {
+					$message->react("😂");
+				});
+
 				// $channel_admin->sendMessage("São agora " . date("H:i"));
 				break;
 		}
 	});
+
+/* 	function GetRandomPortugueseJoke() {
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, "https://api.chucknorris.io/jokes/random");
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		$output = curl_exec($ch);
+		curl_close($ch);
+
+		$json = json_decode($output, true);
+
+		return $json["value"];
+	}
+
+	function GetRandomJoke() {
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, "https://official-joke-api.appspot.com/random_joke");
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		$output = curl_exec($ch);
+		curl_close($ch);
+
+		$joke = json_decode($output);
+
+		return $joke->setup . PHP_EOL . $joke->punchline;
+	} */
+
 
 	// include "registerCommands.php";
 	/* $discord->application->commands->save(new Command($discord, [
