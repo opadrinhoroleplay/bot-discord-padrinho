@@ -68,6 +68,13 @@ $channel_log_voice     = (object) NULL;
 $channel_log_afk       = (object) NULL;
 $rollcall_message_id = null;
 
+$activity_counter = [
+	"dev_messages"   => 0,
+	"github"         => 0,
+	"clickup"        => 0,
+	"admin_messages" => 0,
+];
+
 $db = new mysqli("p:{$config->database->host}", $config->database->user, $config->database->pass, $config->database->database);
 
 // $game_sessions = new GameSessions($db);
@@ -101,13 +108,76 @@ $discord->on('ready', function (Discord $discord) {
 	$channel_log_ingame    = $guild->channels->get("id", CHANNEL_LOG_INGAME);
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
-	TimeKeeping::hour(function($hour) use (
-		$channel_admin
-		) {
+	TimeKeeping::hour(function($hour) use ($channel_main, $channel_admin) {
 		switch ($hour) {
 			case 00:
 				$insult = getInsult();
 				$channel_admin->sendMessage("Pessoal o <@267082772667957250> saiu agora do trabalho. Toca a chatear esse $insult.");
+
+				// Resumir o dia
+				global $activity_counter;
+				$activity_string = "";
+
+				switch($activity_counter["dev_messages"]) {
+					case 0:
+						$activity_string .= "-> Nenhuma mensagem de desenvolvimento foi enviada hoje.";
+						break;
+					case 1:
+						$activity_string .= "-> Uma mensagem de desenvolvimento foi enviada hoje.";
+						break;
+					default:
+						$activity_string .= "-> {$activity_counter["dev_messages"]} mensagens de desenvolvimento foram enviadas hoje. 🥳";
+						break;
+				}
+				$activity_string .= PHP_EOL;
+
+				switch($activity_counter["github"]) {
+					case 0:
+						$activity_string .= "-> Nenhum commit foi feito hoje.";
+						break;
+					case 1:
+						$activity_string .= "-> Um commit foi feito hoje.";
+						break;
+					default:
+						$activity_string .= "-> {$activity_counter["github"]} pushes foram feitos hoje. 🥳";
+						break;
+				}
+				$activity_string .= PHP_EOL;
+
+				switch($activity_counter["clickup"]) {
+					case 0:
+						$activity_string .= "-> Nenhuma tarefa foi concluída hoje.";
+						break;
+					case 1:
+						$activity_string .= "-> Uma tarefa foi concluída hoje.";
+						break;
+					default:
+						$activity_string .= "-> {$activity_counter["clickup"]} tarefas foram concluídas hoje. 🥳";
+						break;
+				}
+				$activity_string .= PHP_EOL;
+
+				switch($activity_counter["admin_messages"]) {
+					case 0:
+						$activity_string .= "-> Nenhuma mensagem de administração foi enviada hoje.";
+						break;
+					case 1:
+						$activity_string .= "-> Uma mensagem de administração foi enviada hoje.";
+						break;
+					default:
+						$activity_string .= "-> {$activity_counter["admin_messages"]} mensagens de administração foram enviadas hoje. 🥳";
+						break;
+				}
+
+				// Resetar os contadores
+				$activity_counter = [
+					"dev_messages"   => 0,
+					"github"         => 0,
+					"clickup"        => 0,
+					"admin_messages" => 0,
+				];
+
+				$channel_main->sendMessage("**Resumo do dia**:\n{$activity_string}");
 				break;
 			case 8:
 				$channel_admin->sendMessage("<@&929172055977508924> São agora 8 da manhã seus cabrões. Toca a acordar!\nQuem é que vai marcar presença hoje? Cliquem no 🖐🏻.")->done(function(Message $message) {
@@ -160,12 +230,27 @@ $discord->on('ready', function (Discord $discord) {
 	])); */
 });
 
-$discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) {
-	if ($message->author->bot) return; // Ignore bots bullshit
+$discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use ($activity_counter) {
+	// if ($message->author->bot) return; // Ignore bots bullshit
 
-	if ($message->member->roles->get("id", ROLE_AFK)) $message->member->removeRole(ROLE_AFK); // Remove their AFK role if they write something
+	if (!$message->author->bot && $message->member->roles->get("id", ROLE_AFK)) $message->member->removeRole(ROLE_AFK); // Remove their AFK role if they write something
 
-	include "chatJokes.php";
+	switch($message->channel_id) {
+		case 1019389839457652776: // #desenvolvimento
+			$activity_counter["dev_messages"]++;
+			break;
+		case CHANNEL_ADMIN:
+			$activity_counter["admin_messages"]++;
+			break;
+		case 1038814705197781044: // #clickup
+			$activity_counter["clickup"]++;
+			break;
+		case 1038958502405754922: // #github
+			$activity_counter["github"]++;
+			break;
+	}
+
+	// include "chatJokes.php";
 
 	// echo "{$message->author->username}: {$message->content}", PHP_EOL;
 });
@@ -178,7 +263,7 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 	if($reaction->message_id == $rollcall_message_id) {
 		if($reaction->emoji->name != "🖐🏻") {
 			$reaction->delete()->done(function () use ($channel_admin, $reaction) {
-				$channel_admin->sendMessage("$reaction->member para quieto fdp.", );
+				$channel_admin->sendMessage("$reaction->member para quieto fdp.");
 			});
 			return;
 		}
@@ -186,9 +271,70 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 		$replies = [
 			"%s ok ok, vou querer ver trabalho então",
 			"Fantástico %s! Espero ver trabalho feito daqui a umas horas",
+			"Vai lá %s, não te esqueças de fazer o trabalho",
+			"%s, não te esqueças de marcar presença no ClickUp!",
+			"Vai lá %s, que eu sei que consegues!",	
+			"%s ok ok, vamos lá ver se não te vais embora",
+			"%s ok ok, não me quero queixar de nada",
+			"Obrigado %s, agora é que é!",
 			"Certo %s, fala aí com o resto do pessoal para ver quais são as tarefas para hoje",
+			"Vou querer ver trabalho %s",
+			"Porra, %s, que bom ver-te por aqui",
+			"Queres mesmo trabalhar %s? 😳",
+			"Trabalho, trabalho, trabalho... %s",
+			"Vamos lá %s, não te quero ver a dormir",
+			"Vou querer ver trabalho %s, mas não te esqueças de descansar também!",
+			"Quem é que vai marcar presença hoje? %s",
+			"O que é que o %s vai fazer hoje? 🤔",
+			"Já estás atrasado %s. Vai-te foder",
+			"Trabalho feito %s? Espero que sim!",
+			"Boa %s, agora é trabalhar",
+			"Vai-te foder %s.",
+			"Já estás atrasado %s",
+			"%s está presente!",
+			"O %s está presente!",
+			"O %s está presente. 🖐🏻",
+			"O %s está presente! 🖐🏻",
+			"O %s está presente. 🖐",
+			"O %s está presente! 🖐",
+			"O %s está presente. 🖐🏼",
+			"O %s está presente! 🖐🏼",
+			"O %s está presente. 🖐🏽",
+			"O %s está presente! 🖐🏽",
+			"O %s está presente. 🖐🏾",
+			"O %s está presente! 🖐🏾",
+			"O %s está presente. 🖐🏿",
+			"O %s está presente! 🖐🏿",
+			"O %s está presente. 🤚🏻",
+			"O %s está presente! 🤚🏻",
+			"O %s está presente. 🤚🏼",
+			"O %s está presente! 🤚🏼",
+			"O %s está presente. 🤚🏽",
+			"O %s está presente! 🤚🏽",
+			"O %s está presente. 🤚🏾",
+			"O %s está presente! 🤚🏾",
+			"O %s está presente. 🤚🏿",
+			"O %s está presente! 🤚🏿",
+			"O %s está presente. 🤚",
+			"O %s está presente! 🤚",
+			"O %s está presente. 👋🏻",
+			"O %s está presente! 👋🏻",
+			"O %s está presente. 👋🏼",
+			"O %s está presente! 👋🏼",
+			"O %s está presente. 👋🏽",
+			"Ó %s, calma lá, não te esqueças de comer",
+			"Ó %s, não te esqueças de beber água",
+			"Ó %s, não te esqueças de ir à casa de banho",
+			"Ó %s, não te esqueças de respirar",
+			"Ó %s, não te esqueças de dormir",
+			"Ó %s, não te esqueças de beber café",
+			"Ó %s, não te esqueças de fazer exercício",
 			"Ok %s, vamos a isso então! Toca a mostrar trabalho",
-			"Tranquilo %s, vamos lá meter mãos a obra"
+			"Tranquilo %s, vamos lá meter mãos a obra",
+			"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa",
+			"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito",
+			"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito e que não seja só copiar e colar",
+			"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito e que não seja só copiar e colar de um site qualquer"
 		];
 
 		$channel_admin->sendMessage(sprintf($replies[rand(0, count($replies)-1)] . ". :handshake:", $reaction->member));
