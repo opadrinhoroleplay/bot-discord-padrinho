@@ -1,5 +1,6 @@
 <?php
-declare(strict_types = 1);
+
+declare(strict_types=1);
 
 include "vendor/autoload.php";
 include "config.php";
@@ -110,7 +111,7 @@ $discord->on('ready', function (Discord $discord) {
 	$channel_log_ingame    = $guild->channels->get("id", CHANNEL_LOG_INGAME);
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
-	TimeKeeping::hour(function($hour) use ($channel_main, $channel_admin) {
+	TimeKeeping::hour(function ($hour) use ($channel_main, $channel_admin) {
 		switch ($hour) {
 			case 00:
 				$insult = getInsult();
@@ -120,7 +121,7 @@ $discord->on('ready', function (Discord $discord) {
 				global $activity_counter;
 				$activity_string = "";
 
-				switch($activity_counter["dev_messages"]) {
+				switch ($activity_counter["dev_messages"]) {
 					case 0:
 						$activity_string .= "-> Nenhuma mensagem de desenvolvimento foi enviada hoje.";
 						break;
@@ -133,7 +134,7 @@ $discord->on('ready', function (Discord $discord) {
 				}
 				$activity_string .= PHP_EOL;
 
-				switch($activity_counter["github"]) {
+				switch ($activity_counter["github"]) {
 					case 0:
 						$activity_string .= "-> Nenhum commit foi feito hoje.";
 						break;
@@ -146,7 +147,7 @@ $discord->on('ready', function (Discord $discord) {
 				}
 				$activity_string .= PHP_EOL;
 
-				switch($activity_counter["clickup"]) {
+				switch ($activity_counter["clickup"]) {
 					case 0:
 						$activity_string .= "-> Nenhuma tarefa foi concluída hoje.";
 						break;
@@ -159,7 +160,7 @@ $discord->on('ready', function (Discord $discord) {
 				}
 				$activity_string .= PHP_EOL;
 
-				switch($activity_counter["admin_messages"]) {
+				switch ($activity_counter["admin_messages"]) {
 					case 0:
 						$activity_string .= "-> Nenhuma mensagem de administração foi enviada hoje.";
 						break;
@@ -182,7 +183,7 @@ $discord->on('ready', function (Discord $discord) {
 				$channel_main->sendMessage("**Resumo do dia**:\n{$activity_string}");
 				break;
 			case 8:
-				$channel_admin->sendMessage("<@&929172055977508924> São agora 8 da manhã seus cabrões. Toca a acordar!\nQuem é que vai marcar presença hoje? Cliquem no 🖐🏻.")->done(function(Message $message) {
+				$channel_admin->sendMessage("<@&929172055977508924> São agora 8 da manhã seus cabrões. Toca a acordar!\nQuem é que vai marcar presença hoje? Cliquem no 🖐🏻.")->done(function (Message $message) {
 					global $rollcall_message_id;
 
 					$message->react("🖐🏻");
@@ -191,33 +192,31 @@ $discord->on('ready', function (Discord $discord) {
 				});
 				break;
 			default:
-				// create a random joke
+				// Send a random joke
+				$chance = rand(1, 100);
 
+				if($chance > 10) break;
+				
+				$ch = curl_init();
 
-				function getInsult() {
-					$ch = curl_init();
-			
-					curl_setopt($ch, CURLOPT_URL, "https://evilinsult.com/generate_insult.php?lang=pt&type=json");
-					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-					curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-					curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-			
-					$result = curl_exec($ch);
-					$result = json_decode($result);
-			
-					return $result;
-				}
-				$insult = getInsult();
-				$channel_main->sendMessage("**$insult->insult** - *$insult->comment*")->done(function(Message $message) {
-					$message->react("😂");
-				});
+				curl_setopt($ch, CURLOPT_URL, "https://evilinsult.com/generate_insult.php?lang=pt&type=json");
+				curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+				curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+				$result = curl_exec($ch);
+				$result = json_decode($result);
+
+				curl_close($ch);
+
+				$channel_main->sendMessage("**$result->insult** - *$result->comment*")->done(function (Message $message) {$message->react("😂");});
 
 				// $channel_admin->sendMessage("São agora " . date("H:i"));
 				break;
 		}
 	});
 
-/* 	function GetRandomPortugueseJoke() {
+	/* 	function GetRandomPortugueseJoke() {
 		$ch = curl_init();
 		curl_setopt($ch, CURLOPT_URL, "https://api.chucknorris.io/jokes/random");
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -288,7 +287,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 
 	if (!$message->author->bot && $message->member->roles->get("id", ROLE_AFK)) $message->member->removeRole(ROLE_AFK); // Remove their AFK role if they write something
 
-	switch($message->channel_id) {
+	switch ($message->channel_id) {
 		case 1019389839457652776: // #desenvolvimento
 			$activity_counter["dev_messages"]++;
 			break;
@@ -309,12 +308,12 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 });
 
 $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, Discord $discord) {
-	if($reaction->member->user->bot) return;
+	if ($reaction->member->user->bot) return;
 
 	global $channel_admin, $rollcall_message_id;
 
-	if($reaction->message_id == $rollcall_message_id) {
-		if($reaction->emoji->name != "🖐🏻") {
+	if ($reaction->message_id == $rollcall_message_id) {
+		if ($reaction->emoji->name != "🖐🏻") {
 			$reaction->delete()->done(function () use ($channel_admin, $reaction) {
 				$channel_admin->sendMessage("$reaction->member para quieto fdp.");
 			});
@@ -326,7 +325,7 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 			"Fantástico %s! Espero ver trabalho feito daqui a umas horas",
 			"Vai lá %s, não te esqueças de fazer o trabalho",
 			"%s, não te esqueças de marcar presença no ClickUp!",
-			"Vai lá %s, que eu sei que consegues!",	
+			"Vai lá %s, que eu sei que consegues!",
 			"%s ok ok, vamos lá ver se não te vais embora",
 			"%s ok ok, não me quero queixar de nada",
 			"Obrigado %s, agora é que é!",
@@ -390,39 +389,43 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 			"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito e que não seja só copiar e colar de um site qualquer"
 		];
 
-		$channel_admin->sendMessage(sprintf($replies[rand(0, count($replies)-1)] . ". :handshake:", $reaction->member));
+		$channel_admin->sendMessage(sprintf($replies[rand(0, count($replies) - 1)] . ". :handshake:", $reaction->member));
 	}
 });
 
 $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Discord $discord) {
-	if($interaction->data->id == 1031932276717662260) { // Criar Feedback
-		
+	if ($interaction->data->id == 1031932276717662260) { // Criar Feedback
+
 		$data = $interaction->data->resolved;
 
 		$message = $data->messages->first();
 
 		$author = $message->author;
 
-		if(strlen($message->content) < 50) {
+		if (strlen($message->content) < 50) {
 			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Opá achas que isso é uma sugestão de jeito? Pega em algo com mais conteúdo caralho."), true);
 			return;
 		}
 
-		$interaction->showModal("Criar Sugestão para $author->username", "feedback", [
-			ActionRow::new()->addComponent(
-				TextInput::new("Título", TextInput::STYLE_SHORT, "title")
-				->setRequired(true)
-				->setPlaceholder("Exemplo: Equilibrar os preços dos Veículos.")
-				->setMinLength(10)
-				->setMaxLength(100)
-			),
-			ActionRow::new()->addComponent(
-				TextInput::new("Sugestão", TextInput::STYLE_PARAGRAPH, "message")
-				->setRequired(true)
-				->setValue($message->content)
-				->setMinLength(50)
-			)
-			], function(Interaction $interaction, $components) use ($author) {
+		$interaction->showModal(
+			"Criar Sugestão para $author->username",
+			"feedback",
+			[
+				ActionRow::new()->addComponent(
+					TextInput::new("Título", TextInput::STYLE_SHORT, "title")
+						->setRequired(true)
+						->setPlaceholder("Exemplo: Equilibrar os preços dos Veículos.")
+						->setMinLength(10)
+						->setMaxLength(100)
+				),
+				ActionRow::new()->addComponent(
+					TextInput::new("Sugestão", TextInput::STYLE_PARAGRAPH, "message")
+						->setRequired(true)
+						->setValue($message->content)
+						->setMinLength(50)
+				)
+			],
+			function (Interaction $interaction, $components) use ($author) {
 				// Create the forum thread
 				$forum = $interaction->guild->channels->get("id", 1019697596555612160);
 
@@ -430,10 +433,10 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 					"name" => $components["title"]->value,
 					"message" => MessageBuilder::new()->setContent(
 						"Clica no 👍🏻 se concordas com esta sugestão e deixa o teu comentário. Valorizamos a tua opinião!\n\n"
-						."Sugestão feita por $author:\n>>> {$components["message"]->value}"
+							. "Sugestão feita por $author:\n>>> {$components["message"]->value}"
 					),
 					"applied_tags" => ["1031013313594802237"]
-				])->done(function(Thread $thread) use ($interaction) {
+				])->done(function (Thread $thread) use ($interaction) {
 					print("Suggestion '$thread->name' created successfully.\n");
 					$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Sugestão $thread criado com sucesso."), true);
 				});
@@ -441,7 +444,7 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 				$interaction->acknowledge();
 			}
 		);
-	} elseif($interaction->data->id = 1032023987250794566) {
+	} elseif ($interaction->data->id = 1032023987250794566) {
 		/* $nuances = ["foda o focinho", "foda os cornos", "leves um biqueiro nos cornos", "te abafe todo", "meta o colhão na virilha"];
 		$nuance = $nuances[rand(0, count($nuances)-1)];
 
@@ -575,13 +578,13 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 		$member_channel = $interaction->guild->channels->get("id", $member_channel);
 
 		// Set a new name if one was provided
-		if($options["nome"]) $member_channel->name = slugify($options["nome"]->value);
+		if ($options["nome"]) $member_channel->name = slugify($options["nome"]->value);
 
 		// Delete all members, minus owner
 		foreach ($member_channel->overwrites as $part) {
 			if ($part->type != 1) continue; // Ignore whatever is not a Member
 			if ($part->id == $member->id) continue; // Don't remove owner perms
-			
+
 			$member_channel->overwrites->delete($part);
 		}
 
@@ -611,7 +614,7 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 				foreach ($channel_members as $channel_member) {
 					$channel->setPermissions($channel_member, ['connect', 'use_vad']);
 					$channel_member->sendMessage("$member autorizou-te a entrar no Canal de Voz Privado '$channel->name'.");
-					print("'$channel_member->username' ");					
+					print("'$channel_member->username' ");
 				}
 				print("Owner: ");
 
