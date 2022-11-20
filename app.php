@@ -7,6 +7,7 @@ include "Utils.php";
 include "language.php";
 include "GameSessions.class.php";
 include "TimeKeeping.php";
+include "Trivia.php";
 
 // date_default_timezone_set('Europe/Lisbon');
 
@@ -67,6 +68,7 @@ $channel_log_ingame    = (object) NULL;
 $channel_log_voice     = (object) NULL;
 $channel_log_afk       = (object) NULL;
 $rollcall_message_id = null;
+$trivia = null;
 
 $activity_counter = [
 	"dev_messages"   => 0,
@@ -228,6 +230,11 @@ $discord->on('ready', function (Discord $discord) {
 		"name" => "Mandar calar",
 		"type" => 3,
 	])); */
+
+	/* $discord->application->commands->save(new Command($discord, [
+		'name' => 'trivia', 
+		'description' => 'Inícia um Trivia sobre Roleplay, para jogar com o Discord inteiro.'])
+	); */
 });
 
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use ($activity_counter) {
@@ -389,7 +396,7 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 			}
 		);
 	} elseif($interaction->data->id = 1032023987250794566) {
-		$nuances = ["foda o focinho", "foda os cornos", "leves um biqueiro nos cornos", "te abafe todo", "meta o colhão na virilha"];
+		/* $nuances = ["foda o focinho", "foda os cornos", "leves um biqueiro nos cornos", "te abafe todo", "meta o colhão na virilha"];
 		$nuance = $nuances[rand(0, count($nuances)-1)];
 
 		$message = $interaction->data->resolved->messages->first();
@@ -397,7 +404,7 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 		$message->reply("Tu cala-te $insult do caralho, antes que $nuance!");
 
 		$interaction->acknowledgeWithResponse();
-		$interaction->deleteOriginalResponse();
+		$interaction->deleteOriginalResponse(); */
 	}
 });
 
@@ -572,6 +579,16 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 			}
 		);
 	}
+});
+
+$discord->listenCommand('trivia', function (Interaction $interaction) {
+	global $trivia;
+
+	$member  = $interaction->member;
+	$channel = $interaction->channel;
+
+	$interaction->respondWithMessage(MessageBuilder::new()->setContent("Vamos lá então a um jogo de **Trívia** sobre _Roleplay_! Quero ver quem é que percebe desta merda."));
+	$trivia = new Trivia($channel);
 });
 
 $discord->run();
