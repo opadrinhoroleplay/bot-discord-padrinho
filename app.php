@@ -114,7 +114,7 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
 	TimeKeeping::hour(function ($hour) use (&$activity_counter, $channel_main, $channel_admin) {
-		static $last_fivem_status = null;
+		static $last_fivem_status = "Por obter...";
 
 		$dom = new DOMDocument();
 		@$dom->loadHTML(file_get_contents("https://status.cfx.re/"));
@@ -122,12 +122,14 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 		$xpath = new DOMXPath($dom);
 		// Only get the divs without id attribute
 		$status = $xpath->query("//div[@class='outages']/div[not(@id)]")[0]->textContent;
+		// Trim status of everything
+		$status = trim($status);
 
 		// Check if the current status is different from the last one
 		if ($status != $last_fivem_status) { // Only send message if status changed
-			$last_fivem_status = $status;
-
 			$channel_main->sendMessage("**Estado do FiveM**:\n```diff\n- {$last_fivem_status}\n+ {$status}\n```");
+			
+			$last_fivem_status = $status;
 		} elseif (strpos($status, 'outage') !== false) { // If the status is still the same and is an outage, send the same status again
 			$channel_main->sendMessage("**Estado do FiveM**: {$last_fivem_status}");
 		}
