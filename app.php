@@ -59,6 +59,8 @@ use Discord\WebSockets\Events\ThreadCreate;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 
+use function Discord\contains;
+
 print("Starting Padrinho\n\n");
 
 $guild                 = (object) NULL;
@@ -88,12 +90,12 @@ $logger->pushHandler(new StreamHandler('php://stdout', Monolog\Level::Info));
 $discord = new Discord([
 	'logger'         => $logger,
 	'token'          => $config->discord->token,
-	'intents'        => Intents::getDefaultIntents() | Intents::GUILD_MEMBERS | Intents::GUILD_PRESENCES,
+	'intents'        => Intents::getDefaultIntents() | Intents::GUILD_MEMBERS | Intents::GUILD_PRESENCES | Intents::GUILD_MESSAGES,
 	'loadAllMembers' => false,
 	'storeMessages'  => true
 ]);
 
-$discord->on('ready', function (Discord $discord) {
+$discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 	global $guild, $channel_main, $channel_admin, $channel_log_traidores, $channel_log_ingame, $channel_log_voice, $channel_log_afk;
 
 	$discord->updatePresence($discord->factory(\Discord\Parts\User\Activity::class, [
@@ -111,64 +113,81 @@ $discord->on('ready', function (Discord $discord) {
 	$channel_log_ingame    = $guild->channels->get("id", CHANNEL_LOG_INGAME);
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
-	TimeKeeping::hour(function ($hour) use ($channel_main, $channel_admin) {
+	TimeKeeping::hour(function ($hour) use (&$activity_counter, $channel_main, $channel_admin) {
+		static $last_fivem_status = null;
+
+		$dom = new DOMDocument();
+		@$dom->loadHTML(file_get_contents("https://status.cfx.re/"));
+
+		$xpath = new DOMXPath($dom);
+		// Only get the divs without id attribute
+		$status = $xpath->query("//div[@class='outages']/div[not(@id)]")[0]->textContent;
+
+		// Check if the current status is different from the last one
+		if ($status != $last_fivem_status) { // Only send message if status changed
+			$last_fivem_status = $status;
+
+			$channel_main->sendMessage("**Estado do FiveM**:\n```diff\n- {$last_fivem_status}\n+ {$status}\n```");
+		} elseif (strpos($status, 'outage') !== false) { // If the status is still the same and is an outage, send the same status again
+			$channel_main->sendMessage("**Estado do FiveM**: {$last_fivem_status}");
+		}
+
 		switch ($hour) {
 			case 00:
 				$insult = getInsult();
 				$channel_admin->sendMessage("Pessoal o <@267082772667957250> saiu agora do trabalho. Toca a chatear esse $insult.");
 
 				// Resumir o dia
-				global $activity_counter;
 				$activity_string = "";
 
 				switch ($activity_counter["dev_messages"]) {
 					case 0:
-						$activity_string .= "-> Nenhuma mensagem de desenvolvimento foi enviada hoje.";
+						$activity_string .= "- Nenhuma mensagem de desenvolvimento foi enviada hoje.";
 						break;
 					case 1:
-						$activity_string .= "-> Uma mensagem de desenvolvimento foi enviada hoje.";
+						$activity_string .= "- Uma mensagem de desenvolvimento foi enviada hoje.";
 						break;
 					default:
-						$activity_string .= "-> {$activity_counter["dev_messages"]} mensagens de desenvolvimento foram enviadas hoje. 🥳";
+						$activity_string .= "- {$activity_counter["dev_messages"]} mensagens de desenvolvimento foram enviadas hoje. 🥳";
 						break;
 				}
 				$activity_string .= PHP_EOL;
 
 				switch ($activity_counter["github"]) {
 					case 0:
-						$activity_string .= "-> Nenhum commit foi feito hoje.";
+						$activity_string .= "- Nenhum commit foi feito hoje.";
 						break;
 					case 1:
-						$activity_string .= "-> Um commit foi feito hoje.";
+						$activity_string .= "- Um commit foi feito hoje.";
 						break;
 					default:
-						$activity_string .= "-> {$activity_counter["github"]} pushes foram feitos hoje. 🥳";
+						$activity_string .= "- {$activity_counter["github"]} pushes foram feitos hoje. 🥳";
 						break;
 				}
 				$activity_string .= PHP_EOL;
 
 				switch ($activity_counter["clickup"]) {
 					case 0:
-						$activity_string .= "-> Nenhuma tarefa foi concluída hoje.";
+						$activity_string .= "- Nenhuma tarefa foi concluída hoje.";
 						break;
 					case 1:
-						$activity_string .= "-> Uma tarefa foi concluída hoje.";
+						$activity_string .= "- Uma tarefa foi concluída hoje.";
 						break;
 					default:
-						$activity_string .= "-> {$activity_counter["clickup"]} tarefas foram concluídas hoje. 🥳";
+						$activity_string .= "- {$activity_counter["clickup"]} tarefas foram concluídas hoje. 🥳";
 						break;
 				}
 				$activity_string .= PHP_EOL;
 
 				switch ($activity_counter["admin_messages"]) {
 					case 0:
-						$activity_string .= "-> Nenhuma mensagem de administração foi enviada hoje.";
+						$activity_string .= "- Nenhuma mensagem de administração foi enviada hoje.";
 						break;
 					case 1:
-						$activity_string .= "-> Uma mensagem de administração foi enviada hoje.";
+						$activity_string .= "- Uma mensagem de administração foi enviada hoje.";
 						break;
 					default:
-						$activity_string .= "-> {$activity_counter["admin_messages"]} mensagens de administração foram enviadas hoje. 🥳";
+						$activity_string .= "- {$activity_counter["admin_messages"]} mensagens de administração foram enviadas hoje. 🥳";
 						break;
 				}
 
@@ -206,6 +225,9 @@ $discord->on('ready', function (Discord $discord) {
 
 				$result = curl_exec($ch);
 				$result = json_decode($result);
+
+				// Convert html entities in $result->comment to utf-8
+				$result->comment = html_entity_decode($result->comment, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
 				curl_close($ch);
 
@@ -282,23 +304,30 @@ $discord->on('ready', function (Discord $discord) {
 	); */
 });
 
-$discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use ($activity_counter) {
+$discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use (&$activity_counter) {
 	// if ($message->author->bot) return; // Ignore bots bullshit
 
 	if (!$message->author->bot && $message->member->roles->get("id", ROLE_AFK)) $message->member->removeRole(ROLE_AFK); // Remove their AFK role if they write something
 
+	print("{$message->author->username} ({$message->author->id}) wrote {$message->content} in {$message->channel->name} ({$message->channel->id}) at " . date("H:i") . PHP_EOL);
+
+	// Get the channel the message was sent in, so we can increment the activity counter
 	switch ($message->channel_id) {
 		case 1019389839457652776: // #desenvolvimento
-			$activity_counter["dev_messages"]++;
+			$activity_counter["dev_messages"]++; # Q: wy is this not working? A: because it's not a global variable
+			print("Dev messages: {$activity_counter["dev_messages"]}\n");
 			break;
 		case CHANNEL_ADMIN:
 			$activity_counter["admin_messages"]++;
+			print("Admin messages: {$activity_counter["admin_messages"]}\n");
 			break;
 		case 1038814705197781044: // #clickup
 			$activity_counter["clickup"]++;
+			print("Clickup: {$activity_counter["clickup"]}\n");
 			break;
 		case 1038958502405754922: // #github
 			$activity_counter["github"]++;
+			print("Github: {$activity_counter["github"]}\n");
 			break;
 	}
 
