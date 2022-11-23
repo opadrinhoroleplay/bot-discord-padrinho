@@ -114,24 +114,31 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
 	TimeKeeping::hour(function ($hour) use (&$activity_counter, $channel_main, $channel_admin) {
-		static $last_fivem_status = "Por obter...";
+		static $fivem = true; // 99.97% uptime so yes it's mostly up
 
-		$dom = new DOMDocument();
-		@$dom->loadHTML(file_get_contents("https://status.cfx.re/"));
+		// Scrape https://status.cfx.re/
+		// Get the last rect element in the first svg element
+		// Get the fill attribute of that element of the rect
+		// If it's #05f4a7 then it's online, otherwise it's offline
 
-		$xpath = new DOMXPath($dom);
-		// Only get the divs without id attribute
-		$status = $xpath->query("//div[@class='outages']/div[not(@id)]")[0]->textContent;
-		// Trim status of everything
-		$status = trim($status);
+		$doc = new DOMDocument();
+		@$doc->loadHTML(file_get_contents("https://status.cfx.re/"));
+		$xpath = new DOMXPath($doc, );
+		$rect  = $xpath->query("//svg/rect[last()]")[0]; // Other elements are generated during runtime so this seemed the best bet
+		$color = $rect->getAttribute("fill");
 
-		// Check if the current status is different from the last one
-		if ($status != $last_fivem_status) { // Only send message if status changed
-			$channel_main->sendMessage("**Estado do FiveM**:\n```diff\n- {$last_fivem_status}\n+ {$status}\n```");
-			
-			$last_fivem_status = $status;
-		} elseif (strpos($status, 'outage') !== false) { // If the status is still the same and is an outage, send the same status again
-			$channel_main->sendMessage("**Estado do FiveM**: {$last_fivem_status}");
+		$online = $color === "#05f4a7" ? true : false;
+
+		if ($online) {
+			if (!$fivem) {
+				$channel_main->sendMessage("O FiveM está de volta! :partying_face:");
+				$fivem = true;
+			}
+		} else {
+			if ($fivem) {
+				$channel_main->sendMessage("O FiveM está offline! :sob:");
+				$fivem = false;
+			}
 		}
 
 		switch ($hour) {
