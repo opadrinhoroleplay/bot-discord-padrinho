@@ -114,7 +114,7 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
 	TimeKeeping::hour(function ($hour) use (&$activity_counter, $channel_main, $channel_admin) {
-		static $fivem = true; // 99.97% uptime so yes it's mostly up
+		static $fivem = NULL; // 99.97% uptime so yes it's mostly up
 
 		// Scrape https://status.cfx.re/
 		// Get the last rect element in the first svg element
@@ -123,11 +123,16 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 
 		$doc = new DOMDocument();
 		@$doc->loadHTML(file_get_contents("https://status.cfx.re/"));
-		$xpath = new DOMXPath($doc, );
+		$xpath = new DOMXPath($doc);
 		$rect  = $xpath->query("//svg/rect[last()]")[0]; // Other elements are generated during runtime so this seemed the best bet
 		$color = $rect->getAttribute("fill");
 
 		$online = $color === "#05f4a7" ? true : false;
+
+		if ($fivem == NULL) { // First hour without having set a first value so we set it now
+			$channel_main->sendMessage("O FiveM encontra-se " . ($online ? "online" : "offline") . "! **Nota**: Monitorizamos o estado do FiveM a cada hora e notificamos se o mesmo se altera.");
+			$fivem = $online;
+		}
 
 		if ($online) {
 			if (!$fivem) {
@@ -136,7 +141,7 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 			}
 		} else {
 			if ($fivem) {
-				$channel_main->sendMessage("O FiveM está offline! :sob:");
+				$channel_main->sendMessage("O FiveM ficou offline! :sob:");
 				$fivem = false;
 			}
 		}
@@ -145,6 +150,7 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 			case 00:
 				$insult = getInsult();
 				$channel_admin->sendMessage("Pessoal o <@267082772667957250> saiu agora do trabalho. Toca a chatear esse $insult.");
+
 
 				// Resumir o dia
 				$activity_string = "";
@@ -208,6 +214,15 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 					"admin_messages" => 0,
 				];
 
+				// Verify if it's been over 24 hours since the bot started
+				$uptime = $channel_main->discord->getUptime();
+				if ($uptime < 86400) {// 24 hours
+					// Format $uptime to readable a human readable time format
+					$uptime = gmdate("H:i:s", $uptime);
+					
+					$activity_string .= "**Ainda não passaram 24 horas ($uptime) desde que o bot foi ligado, portanto estas estatísticas não estão completas.**";
+				}
+
 				$channel_main->sendMessage("**Resumo do dia**:\n{$activity_string}");
 				break;
 			case 8:
@@ -223,8 +238,8 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 				// Send a random joke
 				$chance = rand(1, 100);
 
-				if($chance > 10) break;
-				
+				if ($chance > 10) break;
+
 				$ch = curl_init();
 
 				curl_setopt($ch, CURLOPT_URL, "https://evilinsult.com/generate_insult.php?lang=pt&type=json");
@@ -240,7 +255,9 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 
 				curl_close($ch);
 
-				$channel_main->sendMessage("**$result->insult** - *$result->comment*")->done(function (Message $message) {$message->react("😂");});
+				$channel_main->sendMessage("**$result->insult** - *$result->comment*")->done(function (Message $message) {
+					$message->react("😂");
+				});
 
 				// $channel_admin->sendMessage("São agora " . date("H:i"));
 				break;
