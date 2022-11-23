@@ -95,6 +95,21 @@ $discord = new Discord([
 	'storeMessages'  => true
 ]);
 
+function GetFiveMStatus() {
+	// Scrape https://status.cfx.re/
+	// Get the last rect element in the first svg element
+	// Get the fill attribute of that element of the rect
+	// If it's #05f4a7 then it's online, otherwise it's offline
+
+	$doc = new DOMDocument();
+	@$doc->loadHTML(file_get_contents("https://status.cfx.re/"));
+	$xpath = new DOMXPath($doc, );
+	$rect  = $xpath->query("//svg/rect[last()]")[0]; // Other elements are generated during runtime so this seemed the best bet
+	$color = $rect->getAttribute("fill");
+
+	return $color === "#05f4a7" ? true : false;
+}
+
 $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 	global $guild, $channel_main, $channel_admin, $channel_log_traidores, $channel_log_ingame, $channel_log_voice, $channel_log_afk;
 
@@ -116,18 +131,7 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 	TimeKeeping::hour(function ($hour) use (&$activity_counter, $channel_main, $channel_admin) {
 		static $fivem = true; // 99.97% uptime so yes it's mostly up
 
-		// Scrape https://status.cfx.re/
-		// Get the last rect element in the first svg element
-		// Get the fill attribute of that element of the rect
-		// If it's #05f4a7 then it's online, otherwise it's offline
-
-		$doc = new DOMDocument();
-		@$doc->loadHTML(file_get_contents("https://status.cfx.re/"));
-		$xpath = new DOMXPath($doc, );
-		$rect  = $xpath->query("//svg/rect[last()]")[0]; // Other elements are generated during runtime so this seemed the best bet
-		$color = $rect->getAttribute("fill");
-
-		$online = $color === "#05f4a7" ? true : false;
+		$online = GetFiveMStatus();
 
 		if ($online) {
 			if (!$fivem) {
@@ -310,6 +314,16 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 	/* $discord->application->commands->save(new Command($discord, [
 		'name' => 'trivia', 
 		'description' => 'Inícia um Trivia sobre Roleplay, para jogar com o Discord inteiro.'])
+	); */
+
+	/* $discord->application->commands->save(new Command($discord, [
+		'name' => 'fivem', 
+		'description' => 'Verifica o estado actual do FiveM.'])
+	); */
+
+	/* $discord->application->commands->save(new Command($discord, [
+		'name' => 'forum', 
+		'description' => 'Obtém um post aleatório do forum.cfx.re.'])
 	); */
 });
 
@@ -676,6 +690,11 @@ $discord->listenCommand('trivia', function (Interaction $interaction) {
 
 	$interaction->respondWithMessage(MessageBuilder::new()->setContent("Vamos lá então a um jogo de **Trívia** sobre _Roleplay_! Quero ver quem é que percebe desta merda."));
 	$trivia = new Trivia($channel);
+});
+
+// Listen to the command 'fivem' to check the status
+$discord->listenCommand('fivem', function (Interaction $interaction) {
+	$interaction->respondWithMessage(MessageBuilder::new()->setContent("**Estado actual do FiveM**: " . (GetFiveMStatus() ? 'Online' : 'Offline')));
 });
 
 $discord->run();
