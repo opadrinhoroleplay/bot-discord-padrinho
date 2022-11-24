@@ -128,7 +128,7 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 	$channel_log_ingame    = $guild->channels->get("id", CHANNEL_LOG_INGAME);
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
-	TimeKeeping::hour(function ($hour) use (&$activity_counter, $channel_main, $channel_admin) {
+	TimeKeeping::hour(function ($hour) use ($discord, &$activity_counter, $channel_main, $channel_admin) {
 		static $fivem = NULL; // 99.97% uptime so yes it's mostly up
 
 		$online = GetFiveMStatus();
@@ -219,7 +219,7 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 				];
 
 				// Verify if it's been over 24 hours since the bot started
-				$uptime = $channel_main->discord->getUptime();
+				$uptime = $discord->getUptime();
 				if ($uptime < 86400) {// 24 hours
 					// Format $uptime to readable a human readable time format
 					$uptime = gmdate("H:i:s", $uptime);
