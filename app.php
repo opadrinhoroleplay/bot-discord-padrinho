@@ -59,10 +59,9 @@ use Discord\WebSockets\Events\ThreadCreate;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 
-use function Discord\contains;
-
 print("Starting Padrinho\n\n");
 
+$start_time            = new DateTime();
 $guild                 = (object) NULL;
 $channel_admin         = (object) NULL;
 $channel_main          = (object) NULL;
@@ -70,8 +69,8 @@ $channel_log_traidores = (object) NULL;
 $channel_log_ingame    = (object) NULL;
 $channel_log_voice     = (object) NULL;
 $channel_log_afk       = (object) NULL;
-$rollcall_message_id = null;
-$trivia = null;
+$rollcall_message_id   = null;
+$trivia                = null;
 
 $activity_counter = [
 	"dev_messages"   => 0,
@@ -110,7 +109,7 @@ function GetFiveMStatus() {
 	return $color === "#05f4a7" ? true : false;
 }
 
-$discord->on('ready', function (Discord $discord) use (&$activity_counter) {
+$discord->on('ready', function (Discord $discord) use ($start_time, &$activity_counter) {
 	global $guild, $channel_main, $channel_admin, $channel_log_traidores, $channel_log_ingame, $channel_log_voice, $channel_log_afk;
 
 	$discord->updatePresence($discord->factory(\Discord\Parts\User\Activity::class, [
@@ -128,7 +127,7 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 	$channel_log_ingame    = $guild->channels->get("id", CHANNEL_LOG_INGAME);
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
-	TimeKeeping::hour(function ($hour) use ($discord, &$activity_counter, $channel_main, $channel_admin) {
+	TimeKeeping::hour(function ($hour) use ($discord, $start_time, &$activity_counter, $channel_main, $channel_admin) {
 		static $fivem = NULL; // 99.97% uptime so yes it's mostly up
 
 		$online = GetFiveMStatus();
@@ -217,14 +216,13 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 					"clickup"        => 0,
 					"admin_messages" => 0,
 				];
-
-				// Verify if it's been over 24 hours since the bot started
-				$uptime = $discord->getUptime();
-				if ($uptime < 86400) {// 24 hours
-					// Format $uptime to readable a human readable time format
-					$uptime = gmdate("H:i:s", $uptime);
+				
+				$uptime = $start_time->diff(new DateTime());
+				
+				if ($uptime > 86400) {// 24 hours
+					$uptime_string = $uptime->format("%a dias, %h horas, %i minutos e %s segundos");
 					
-					$activity_string .= "**Ainda não passaram 24 horas ($uptime) desde que o bot foi ligado, portanto estas estatísticas não estão completas.**";
+					$activity_string .= "**Ainda não passaram 24 horas ($uptime_string) desde que o bot foi ligado, portanto estas estatísticas não estão completas.**";
 				}
 
 				$channel_main->sendMessage("**Resumo do dia**:\n{$activity_string}");
@@ -341,6 +339,11 @@ $discord->on('ready', function (Discord $discord) use (&$activity_counter) {
 	/* $discord->application->commands->save(new Command($discord, [
 		'name' => 'forum', 
 		'description' => 'Obtém um post aleatório do forum.cfx.re.'])
+	); */
+
+	/* $discord->application->commands->save(new Command($discord, [
+		'name' => 'uptime', 
+		'description' => 'Mostra o tempo que o bot está online.'])
 	); */
 });
 
@@ -549,9 +552,15 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 		SetMemberIngame($member, false);
 	}
 
-
 	// if($traidorfdp) $channel_log_traidores->sendMessage("**{$member->username}** está a jogar roleplay noutro servidor.");
 	// $channel_log_ingame->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game", "playing", $game->name, $game->state) : "está agora a jogar **$game->name**") . ($traidorfdp ? " @here" : NULL) : _U("game", "not_playing")));
+});
+
+$discord->listenCommand('uptime', function (Interaction $interaction) use ($start_time) {
+	$uptime = $start_time->diff(new DateTime());
+	$uptime_string = $uptime->format("%a dias, %h horas, %i minutos e %s segundos");
+
+	$interaction->respondWithMessage(MessageBuilder::new()->setContent("Estou online a $uptime_string"), true);
 });
 
 $discord->listenCommand('afk', function (Interaction $interaction) {
