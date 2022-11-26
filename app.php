@@ -444,10 +444,9 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 			});
 			break;
 		case InteractionType::APPLICATION_COMMAND:
-			$interaction->acknowledge()->done(function () use ($interaction) {
 				switch($interaction->data->id) {
-					case 1032023987250794566:
-						$nuances = ["foda o focinho", "foda os cornos", "leves um biqueiro nos cornos", "te abafe todo", "meta o colhão na virilha"];
+					case 1032023987250794566: // Mandar calar
+						$nuances = ["foda o focinho", "foda os cornos", "leves um biqueiro nos cornos", "te abafe todo", "te meta o colhão na virilha"];
 						$nuance = $nuances[rand(0, count($nuances)-1)];
 				
 						$message = $interaction->data->resolved->messages->first();
@@ -457,11 +456,53 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 						$interaction->acknowledgeWithResponse();
 						$interaction->deleteOriginalResponse();
 						break;
-					default:
-						print("Unknown command\n");
+					case 1031932276717662260: // Criar Sugestão
+						$data    = $interaction->data->resolved;
+						$message = $data->messages->first();
+						$author  = $message->author;
+				
+						if (strlen($message->content) < 50) {
+							$interaction->respondWithMessage(MessageBuilder::new()->setContent("Opá achas que isso é uma sugestão de jeito? Pega em algo com mais conteúdo caralho."), true);
+							return;
+						}
+
+						$interaction->showModal(
+							"Criar Sugestão para $author->username",
+							"feedback",
+							[
+								ActionRow::new()->addComponent(
+									TextInput::new("Título", TextInput::STYLE_SHORT, "title")
+										->setRequired(true)
+										->setPlaceholder("Exemplo: Equilibrar os preços dos Veículos.")
+										->setMinLength(10)
+										->setMaxLength(100)
+								),
+								ActionRow::new()->addComponent(
+									TextInput::new("Sugestão", TextInput::STYLE_PARAGRAPH, "message")
+										->setRequired(true)
+										->setValue($message->content)
+										->setMinLength(50)
+								)
+							],
+							function (Interaction $interaction, $components) use ($author) {
+								// Create the forum thread
+								$forum = $interaction->guild->channels->get("id", 1019697596555612160);
+				
+								$forum->startThread([
+									"name" => $components["title"]->value,
+									"message" => MessageBuilder::new()->setContent(
+										"Clica no 👍🏻 se concordas com esta sugestão e deixa o teu comentário. Valorizamos a tua opinião!\n\n"
+											. "Sugestão feita por $author:\n>>> {$components["message"]->value}"
+									),
+									"applied_tags" => ["1031013313594802237"]
+								])->done(function (Thread $thread) use ($interaction) {
+									print("Suggestion '$thread->name' created successfully.\n");
+									$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Sugestão $thread criado com sucesso."), true);
+								});
+							}
+						);
 						break;
 				}
-			});
 
 			break;
 		case InteractionType::MESSAGE_COMPONENT:
@@ -476,59 +517,9 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 			break;
 		case InteractionType::MODAL_SUBMIT:
 			$interaction->acknowledge()->done(function () use ($interaction) {
-				print("Modal submit received!");
+				print("Modal submit received!\n");
 			});
 			break;
-	}
-	
-	if ($interaction->data->id == 1031932276717662260) { // Criar Feedback
-
-		$data    = $interaction->data->resolved;
-		$message = $data->messages->first();
-		$author  = $message->author;
-
-		if (strlen($message->content) < 50) {
-			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Opá achas que isso é uma sugestão de jeito? Pega em algo com mais conteúdo caralho."), true);
-			return;
-		}
-
-		$interaction->showModal(
-			"Criar Sugestão para $author->username",
-			"feedback",
-			[
-				ActionRow::new()->addComponent(
-					TextInput::new("Título", TextInput::STYLE_SHORT, "title")
-						->setRequired(true)
-						->setPlaceholder("Exemplo: Equilibrar os preços dos Veículos.")
-						->setMinLength(10)
-						->setMaxLength(100)
-				),
-				ActionRow::new()->addComponent(
-					TextInput::new("Sugestão", TextInput::STYLE_PARAGRAPH, "message")
-						->setRequired(true)
-						->setValue($message->content)
-						->setMinLength(50)
-				)
-			],
-			function (Interaction $interaction, $components) use ($author) {
-				// Create the forum thread
-				$forum = $interaction->guild->channels->get("id", 1019697596555612160);
-
-				$forum->startThread([
-					"name" => $components["title"]->value,
-					"message" => MessageBuilder::new()->setContent(
-						"Clica no 👍🏻 se concordas com esta sugestão e deixa o teu comentário. Valorizamos a tua opinião!\n\n"
-							. "Sugestão feita por $author:\n>>> {$components["message"]->value}"
-					),
-					"applied_tags" => ["1031013313594802237"]
-				])->done(function (Thread $thread) use ($interaction) {
-					print("Suggestion '$thread->name' created successfully.\n");
-					$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Sugestão $thread criado com sucesso."), true);
-				});
-
-				$interaction->acknowledge();
-			}
-		);
 	}
 });
 
@@ -721,6 +712,11 @@ $discord->listenCommand('trivia', function (Interaction $interaction) {
 
 // Listen to the command 'fivem' to check the status
 $discord->listenCommand('fivem', function (Interaction $interaction) {
+	$interaction->acknowledgeWithResponse()->done(function () use ($interaction) {
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("A verificar o estado do servidor..."));
+	}, function ($error) {
+		print("Impossivel verificar o estado do servidor.\n$error\n");
+	});
 	$interaction->respondWithMessage(MessageBuilder::new()->setContent("**Estado actual do FiveM**: " . (GetFiveMStatus() ? 'Online' : 'Offline')));
 });
 
