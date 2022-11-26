@@ -93,7 +93,8 @@ $discord = new Discord([
 	'storeMessages'  => true
 ]);
 
-function GetFiveMStatus() {
+function GetFiveMStatus()
+{
 	// Scrape https://status.cfx.re/
 	// Get the last rect element in the first svg element
 	// Get the fill attribute of that element of the rect
@@ -101,7 +102,7 @@ function GetFiveMStatus() {
 
 	$doc = new DOMDocument();
 	@$doc->loadHTML(file_get_contents("https://status.cfx.re/"));
-	$xpath = new DOMXPath($doc, );
+	$xpath = new DOMXPath($doc,);
 	$rect  = $xpath->query("//svg/rect[last()]")[0]; // Other elements are generated during runtime so this seemed the best bet
 	$color = $rect->getAttribute("fill");
 
@@ -215,12 +216,12 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 					"clickup"        => 0,
 					"admin_messages" => 0,
 				];
-				
+
 				$uptime = $start_time->diff(new DateTime());
-				
-				if ($uptime > 86400) {// 24 hours
+
+				if ($uptime > 86400) { // 24 hours
 					$uptime_string = $uptime->format("%a dias, %h horas, %i minutos e %s segundos");
-					
+
 					$activity_string .= "**Ainda não passaram 24 horas ($uptime_string) desde que o bot foi ligado, portanto estas estatísticas não estão completas.**";
 				}
 
@@ -325,24 +326,19 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 		"type" => 3,
 	])); */
 
-	/* $discord->application->commands->save(new Command($discord, [
-		'name' => 'trivia', 
-		'description' => 'Inícia um Trivia sobre Roleplay, para jogar com o Discord inteiro.'])
-	); */
-
-	/* $discord->application->commands->save(new Command($discord, [
-		'name' => 'fivem', 
-		'description' => 'Verifica o estado actual do FiveM.'])
-	); */
-
-	/* $discord->application->commands->save(new Command($discord, [
-		'name' => 'forum', 
-		'description' => 'Obtém um post aleatório do forum.cfx.re.'])
-	); */
-
-	/* $discord->application->commands->save(new Command($discord, [
-		'name' => 'uptime', 
-		'description' => 'Mostra o tempo que o bot está online.'])
+	/* $discord->application->commands->save(
+		new Command($discord, [
+			'name' => 'convidar',
+			'description' => 'Cria um link de convite poderes convidar os teus amigos.',
+			"options" => [
+				[
+					"type"        => 3,
+					"name"        => "utilizador",
+					"description" => "Nome e Discriminador do Utilizador. (Exemplo: Utilizador#1234)",
+					"required"    => true
+				]
+			]
+		])
 	); */
 });
 
@@ -436,7 +432,7 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 });
 
 $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Discord $discord) {
-	switch($interaction->type) {
+	switch ($interaction->type) {
 		case InteractionType::PING:
 			$interaction->acknowledge()->done(function () use ($interaction) {
 				// $interaction->reply("Pong!");
@@ -444,65 +440,65 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 			});
 			break;
 		case InteractionType::APPLICATION_COMMAND:
-				switch($interaction->data->id) {
-					case 1032023987250794566: // Mandar calar
-						$nuances = ["foda o focinho", "foda os cornos", "leves um biqueiro nos cornos", "te abafe todo", "te meta o colhão na virilha"];
-						$nuance = $nuances[rand(0, count($nuances)-1)];
-				
-						$message = $interaction->data->resolved->messages->first();
-						$insult = getInsult();
-						$message->reply("Tu cala-te $insult do caralho, antes que $nuance!");
-				
-						$interaction->acknowledgeWithResponse();
-						$interaction->deleteOriginalResponse();
-						break;
-					case 1031932276717662260: // Criar Sugestão
-						$data    = $interaction->data->resolved;
-						$message = $data->messages->first();
-						$author  = $message->author;
-				
-						if (strlen($message->content) < 50) {
-							$interaction->respondWithMessage(MessageBuilder::new()->setContent("Opá achas que isso é uma sugestão de jeito? Pega em algo com mais conteúdo caralho."), true);
-							return;
-						}
+			switch ($interaction->data->id) {
+				case 1032023987250794566: // Mandar calar
+					$nuances = ["foda o focinho", "foda os cornos", "leves um biqueiro nos cornos", "te abafe todo", "te meta o colhão na virilha"];
+					$nuance = $nuances[rand(0, count($nuances) - 1)];
 
-						$interaction->showModal(
-							"Criar Sugestão para $author->username",
-							"feedback",
-							[
-								ActionRow::new()->addComponent(
-									TextInput::new("Título", TextInput::STYLE_SHORT, "title")
-										->setRequired(true)
-										->setPlaceholder("Exemplo: Equilibrar os preços dos Veículos.")
-										->setMinLength(10)
-										->setMaxLength(100)
+					$message = $interaction->data->resolved->messages->first();
+					$insult = getInsult();
+					$message->reply("Tu cala-te $insult do caralho, antes que $nuance!");
+
+					$interaction->acknowledgeWithResponse();
+					$interaction->deleteOriginalResponse();
+					break;
+				case 1031932276717662260: // Criar Sugestão
+					$data    = $interaction->data->resolved;
+					$message = $data->messages->first();
+					$author  = $message->author;
+
+					if (strlen($message->content) < 50) {
+						$interaction->respondWithMessage(MessageBuilder::new()->setContent("Opá achas que isso é uma sugestão de jeito? Pega em algo com mais conteúdo caralho."), true);
+						return;
+					}
+
+					$interaction->showModal(
+						"Criar Sugestão para $author->username",
+						"feedback",
+						[
+							ActionRow::new()->addComponent(
+								TextInput::new("Título", TextInput::STYLE_SHORT, "title")
+									->setRequired(true)
+									->setPlaceholder("Exemplo: Equilibrar os preços dos Veículos.")
+									->setMinLength(10)
+									->setMaxLength(100)
+							),
+							ActionRow::new()->addComponent(
+								TextInput::new("Sugestão", TextInput::STYLE_PARAGRAPH, "message")
+									->setRequired(true)
+									->setValue($message->content)
+									->setMinLength(50)
+							)
+						],
+						function (Interaction $interaction, $components) use ($author) {
+							// Create the forum thread
+							$forum = $interaction->guild->channels->get("id", 1019697596555612160);
+
+							$forum->startThread([
+								"name" => $components["title"]->value,
+								"message" => MessageBuilder::new()->setContent(
+									"Clica no 👍🏻 se concordas com esta sugestão e deixa o teu comentário. Valorizamos a tua opinião!\n\n"
+										. "Sugestão feita por $author:\n>>> {$components["message"]->value}"
 								),
-								ActionRow::new()->addComponent(
-									TextInput::new("Sugestão", TextInput::STYLE_PARAGRAPH, "message")
-										->setRequired(true)
-										->setValue($message->content)
-										->setMinLength(50)
-								)
-							],
-							function (Interaction $interaction, $components) use ($author) {
-								// Create the forum thread
-								$forum = $interaction->guild->channels->get("id", 1019697596555612160);
-				
-								$forum->startThread([
-									"name" => $components["title"]->value,
-									"message" => MessageBuilder::new()->setContent(
-										"Clica no 👍🏻 se concordas com esta sugestão e deixa o teu comentário. Valorizamos a tua opinião!\n\n"
-											. "Sugestão feita por $author:\n>>> {$components["message"]->value}"
-									),
-									"applied_tags" => ["1031013313594802237"]
-								])->done(function (Thread $thread) use ($interaction) {
-									print("Suggestion '$thread->name' created successfully.\n");
-									$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Sugestão $thread criado com sucesso."), true);
-								});
-							}
-						);
-						break;
-				}
+								"applied_tags" => ["1031013313594802237"]
+							])->done(function (Thread $thread) use ($interaction) {
+								print("Suggestion '$thread->name' created successfully.\n");
+								$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Sugestão $thread criado com sucesso."), true);
+							});
+						}
+					);
+					break;
+			}
 
 			break;
 		case InteractionType::MESSAGE_COMPONENT:
@@ -575,6 +571,57 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 
 	// if($traidorfdp) $channel_log_traidores->sendMessage("**{$member->username}** está a jogar roleplay noutro servidor.");
 	// $channel_log_ingame->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game", "playing", $game->name, $game->state) : "está agora a jogar **$game->name**") . ($traidorfdp ? " @here" : NULL) : _U("game", "not_playing")));
+});
+
+$discord->listenCommand('convidar', function (Interaction $interaction) use ($start_time) {
+	// $interaction->acknowledge()->done(function () use ($interaction, $start_time) {
+		$options = $interaction->data->options;
+		$utilizador = $options["utilizador"]->value;
+		// Verify if $utilizador is of format name#discriminator
+		if (!preg_match("/^([a-zA-Z0-9_]{2,32})#([0-9]{4})$/", $utilizador)) {
+			$interaction->respondWithMessage(MessageBuilder::new()->setContent("O utilizador tem de estar no formato `nome#discriminador`."), true);
+			return;
+		}
+
+		// Get the user
+		$user = $interaction->guild->members->get("username", explode("#", $utilizador)[0]);
+		if (!$user) {
+			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Não encontrei nenhum utilizador com o nome `$utilizador`."), true);
+			return;
+		}
+
+		// Verify if the user is already in the guild
+		if ($interaction->guild->members->has($user->id)) {
+			$interaction->respondWithMessage(MessageBuilder::new()->setContent("O utilizador já está no servidor."), true);
+			return;
+		}
+
+		// Find out if a user joined using the invite link
+		/* $invites = $interaction->guild->invites->toArray();
+		$invite = array_filter($invites, fn ($invite) => $invite->inviter->id == $interaction->user->id);
+		if (count($invite) == 0) {
+			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Não tens nenhum convite ativo."), true);
+			return;
+		} */
+
+		// Verify if the user is already invited
+		$invites = $interaction->guild->invites;
+		$invite = $invites->find(fn ($invite) => $invite->inviter->id == $interaction->user->id && $invite->uses < 5);
+		if (!$invite) {
+			$invite = $interaction->guild->createInvite([
+				"max_age" => 0,
+				"max_uses" => 5,
+				"temporary" => false,
+				"unique" => true
+			])->done(function ($invite) use ($interaction) {
+				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei um convite para ti: $invite->url"), true);
+			});
+		} else {
+			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Já tens um convite para ti: $invite->url"), true);
+		}
+
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Utilizador Convidado: **$utilizador**"), false);
+	// });
 });
 
 $discord->listenCommand('uptime', function (Interaction $interaction) use ($start_time) {
