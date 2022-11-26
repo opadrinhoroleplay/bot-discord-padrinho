@@ -337,20 +337,21 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 	); */
 });
 
-// Listen on the INVITE_CREATE event
+// Creating Invites
 $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
-	global $guild, $channel_admin;
+	global $channel_admin;
 
 	// Delete invites that are not created by our bot and VIRUXE
 	if ($invite->inviter->id != $discord->id && $invite->inviter->id != OWNER_ID) 
 	{
 		$channel_admin->sendMessage("O utilizador tentou <@{$invite->inviter->id}> criar um convite ($invite->code). O convite foi apagado.");
-		$guild->invites->delete($invite);
+		$invite->guild->invites->delete($invite);
 	} else {
 		$channel_admin->sendMessage("<@{$invite->inviter->id}> criou um convite ($invite->code) para o servidor. O convite foi criado com sucesso.");
 	}
 });
 
+// Any actual message in the guild
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use (&$activity_counter) {
 	// if ($message->author->bot) return; // Ignore bots bullshit
 
