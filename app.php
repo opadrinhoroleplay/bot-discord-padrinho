@@ -33,31 +33,30 @@ define("SERVER_NAME", $config->server->name);
 
 use Discord\Builders\Components\ActionRow;
 use Discord\Builders\Components\TextInput;
-use React\EventLoop\Loop;
-
-use Discord\Parts\Channel\Channel;
-use Discord\Parts\Interactions\Command\Command;
-use Discord\Parts\Permissions\ChannelPermission;
 use Discord\Builders\MessageBuilder;
 use Discord\Discord;
 use Discord\Helpers\Collection;
+use Discord\InteractionType;
+use Discord\Parts\Channel\Channel;
 use Discord\Parts\Channel\Forum\Tag;
 use Discord\Parts\Channel\Message;
+use Discord\Parts\Interactions\Command\Command;
 use Discord\Parts\Interactions\Interaction;
+use Discord\Parts\Part;
+use Discord\Parts\Permissions\ChannelPermission;
+use Discord\Parts\Thread\Thread;
 use Discord\Parts\User\Activity;
 use Discord\Parts\User\Member;
+use Discord\Parts\WebSockets\MessageReaction;
 use Discord\Parts\WebSockets\PresenceUpdate;
 use Discord\Parts\WebSockets\VoiceStateUpdate;
 use Discord\Repository\Guild\MemberRepository;
 use Discord\WebSockets\Event;
-use Discord\WebSockets\Intents;
-
-use Discord\Parts\Part;
-use Discord\Parts\Thread\Thread;
-use Discord\Parts\WebSockets\MessageReaction;
 use Discord\WebSockets\Events\ThreadCreate;
+use Discord\WebSockets\Intents;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
+use React\EventLoop\Loop;
 
 print("Starting Padrinho\n\n");
 
@@ -437,13 +436,56 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 });
 
 $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Discord $discord) {
+	switch($interaction->type) {
+		case InteractionType::PING:
+			$interaction->acknowledge()->done(function () use ($interaction) {
+				// $interaction->reply("Pong!");
+				print("Pong!\n");
+			});
+			break;
+		case InteractionType::APPLICATION_COMMAND:
+			$interaction->acknowledge()->done(function () use ($interaction) {
+				switch($interaction->data->id) {
+					case 1032023987250794566:
+						$nuances = ["foda o focinho", "foda os cornos", "leves um biqueiro nos cornos", "te abafe todo", "meta o colhão na virilha"];
+						$nuance = $nuances[rand(0, count($nuances)-1)];
+				
+						$message = $interaction->data->resolved->messages->first();
+						$insult = getInsult();
+						$message->reply("Tu cala-te $insult do caralho, antes que $nuance!");
+				
+						$interaction->acknowledgeWithResponse();
+						$interaction->deleteOriginalResponse();
+						break;
+					default:
+						print("Unknown command\n");
+						break;
+				}
+			});
+
+			break;
+		case InteractionType::MESSAGE_COMPONENT:
+			$interaction->acknowledge()->done(function () use ($interaction) {
+				print("Message component received!\n");
+			});
+			break;
+		case InteractionType::APPLICATION_COMMAND_AUTOCOMPLETE:
+			$interaction->acknowledge()->done(function () use ($interaction) {
+				print("Autocomplete received!\n");
+			});
+			break;
+		case InteractionType::MODAL_SUBMIT:
+			$interaction->acknowledge()->done(function () use ($interaction) {
+				print("Modal submit received!");
+			});
+			break;
+	}
+	
 	if ($interaction->data->id == 1031932276717662260) { // Criar Feedback
 
-		$data = $interaction->data->resolved;
-
+		$data    = $interaction->data->resolved;
 		$message = $data->messages->first();
-
-		$author = $message->author;
+		$author  = $message->author;
 
 		if (strlen($message->content) < 50) {
 			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Opá achas que isso é uma sugestão de jeito? Pega em algo com mais conteúdo caralho."), true);
@@ -487,23 +529,11 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 				$interaction->acknowledge();
 			}
 		);
-	} elseif ($interaction->data->id = 1032023987250794566) {
-		/* $nuances = ["foda o focinho", "foda os cornos", "leves um biqueiro nos cornos", "te abafe todo", "meta o colhão na virilha"];
-		$nuance = $nuances[rand(0, count($nuances)-1)];
-
-		$message = $interaction->data->resolved->messages->first();
-		$insult = getInsult();
-		$message->reply("Tu cala-te $insult do caralho, antes que $nuance!");
-
-		$interaction->acknowledgeWithResponse();
-		$interaction->deleteOriginalResponse(); */
 	}
 });
 
 $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord $discord) {
 	if ($presence->user->bot) return;
-
-	// var_dump($presence);
 
 	global $game_sessions;
 	static $member_status = [];
@@ -522,7 +552,7 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 		if ($last_status != $curr_status) {
 			if ($curr_status == "idle") {
 				SetMemberAFK($member, true);
-				if ($member->getVoiceChannel()) $member->moveMember(NULL, "Became AFK."); // Remove member from the voice channels if they become AFK
+				// if ($member->getVoiceChannel()) $member->moveMember(NULL, "Became AFK."); // Remove member from the voice channels if they become AFK
 			} else SetMemberAFK($member, false);
 
 			print("'$member->username' updated status: '$last_status' -> '$curr_status'\n");
