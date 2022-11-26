@@ -53,6 +53,8 @@ use Discord\WebSockets\Intents;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 
+use Discord\Parts\Interactions\Command\Command;
+
 print("Starting Padrinho\n\n");
 
 $start_time            = new DateTime();
@@ -288,19 +290,13 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 
 	// include "registerCommands.php";
 	/* $discord->application->commands->save(new Command($discord, [
-		'name' => 'voz', 
-		'description' => 'Cria/edita um Canal de Voz Privado, para ti e para os teus amigos.',
+		'name' => 'afk', 
+		'description' => 'Define o teu estado de AFK. (Caso alguém te mencione, o bot irá responder com a tua razão de AFK.)',
 		"options" => [
 			[
 				"type"        => 3,
-				"name"        => "membros",
-				"description" => "Membros do canal. Mencionados com @ (Exemplo: @membro @membro @membro)",
-				"required"    => true
-			],
-			[
-				"type"        => 3,
-				"name"        => "nome",
-				"description" => "Nome que queres dar ao canal. Caso queiras.",
+				"name"        => "razao",
+				"description" => "Razão pela qual estás AFK.",
 				"required"    => false
 			]
 		]
@@ -377,6 +373,22 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 			$activity_counter["github"]++;
 			print("Github: {$activity_counter["github"]}\n");
 			break;
+	}
+
+	/* 
+		See if someone mentioned someone, and if they did, check if the mentioned user is AFK.
+		If the mentioned user is AFK then send a message to that channel saying the reason why they are AFK.
+
+		TODO: Save the reason somewhere so we can get it later.
+	*/
+	if (preg_match_all("/<@!?(\d+)>/", $message->content, $matches)) {
+		foreach ($matches[1] as $id) {
+			$member = $message->guild->members->get("id", $id);
+			if ($member->roles->get("id", ROLE_AFK)) {
+				// $reason = $member->roles->get("id", ROLE_AFK)->name;
+				$message->channel->sendMessage("<@{$member->id}> está AFK");
+			}
+		}
 	}
 
 	// include "chatJokes.php";
@@ -644,12 +656,12 @@ $discord->listenCommand('uptime', function (Interaction $interaction) use ($star
 $discord->listenCommand('afk', function (Interaction $interaction) {
 	global $channel_main, $channel_admin;
 
-	$member  = $interaction->member;
-	$is_afk   = IsMemberAFK($member);    // Check if the member has the role or not
+	$member = $interaction->member;
+	$is_afk = IsMemberAFK($member);
 
 	SetMemberAFK($member, !$is_afk);
 
-	$message = $is_afk ? "$member não está mais AFK." : "$member ficou agora AFK";
+	$message = $is_afk ? "$member não está mais AFK." : "$member ficou agora AFK. Razão: " . ($interaction->data->options["razao"] ? $interaction->data->options["razao"]->value : "Não especificada");
 	$channel_main->sendMessage($message);
 	if (IsMemberAdmin($member)) $channel_admin->sendMessage($message);
 
@@ -795,8 +807,6 @@ $discord->run();
 function SetMemberAFK(Member $member, bool $toggle): bool
 {
 	$is_afk = IsMemberAFK($member);
-
-	// print($is_afk . " " . $toggle);
 
 	if ($is_afk === $toggle) return false;
 
