@@ -67,6 +67,7 @@ $channel_log_voice     = (object) NULL;
 $channel_log_afk       = (object) NULL;
 $rollcall_message_id   = null;
 $trivia                = null;
+$afk                   = [];
 
 $activity_counter = [
 	"dev_messages"   => 0,
@@ -85,7 +86,7 @@ $logger->pushHandler(new StreamHandler('php://stdout', Monolog\Level::Info));
 $discord = new Discord([
 	'logger'         => $logger,
 	'token'          => $config->discord->token,
-	'intents'        => Intents::getDefaultIntents() | Intents::GUILD_MEMBERS | Intents::GUILD_PRESENCES | Intents::GUILD_MESSAGES,
+	'intents'        => Intents::getDefaultIntents() | Intents::GUILD_MEMBERS | Intents::GUILD_PRESENCES | Intents::GUILD_MESSAGES | Intents::MESSAGE_CONTENT,
 	'loadAllMembers' => false,
 	'storeMessages'  => true
 ]);
@@ -349,51 +350,55 @@ $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
 
 // Any actual message in the guild
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use (&$activity_counter) {
-	// if ($message->author->bot) return; // Ignore bots bullshit
+	// Ignore messages from bots
+	if ($message->author->bot) {
+		// Get the channel the message was sent in, so we can increment the activity counter
+		switch ($message->channel_id) {
+			case 1019389839457652776: // #desenvolvimento
+				$activity_counter["dev_messages"]++; # Q: wy is this not working? A: because it's not a global variable
+				print("Dev messages: {$activity_counter["dev_messages"]}\n");
+				break;
+			case CHANNEL_ADMIN:
+				$activity_counter["admin_messages"]++;
+				print("Admin messages: {$activity_counter["admin_messages"]}\n");
+				break;
+			case 1038814705197781044: // #clickup
+				$activity_counter["clickup"]++;
+				print("Clickup: {$activity_counter["clickup"]}\n");
+				break;
+			case 1038958502405754922: // #github
+				$activity_counter["github"]++;
+				print("Github: {$activity_counter["github"]}\n");
+				break;
+		}
+	} else { // If the message was not sent by a bot, then it was sent by a human
+		print("{$message->author->username} ({$message->author->id}) wrote {$message->content} in {$message->channel->name} ({$message->channel->id}) at " . date("H:i") . PHP_EOL);
 
-	if (!$message->author->bot && $message->member->roles->get("id", ROLE_AFK)) $message->member->removeRole(ROLE_AFK); // Remove their AFK role if they write something
+		// Set a Member to not being AFK if they send a message
+		if(IsMemberAFK($message->member)) SetMemberAFK($message->member, false);
 
-	print("{$message->author->username} ({$message->author->id}) wrote {$message->content} in {$message->channel->name} ({$message->channel->id}) at " . date("H:i") . PHP_EOL);
+		/* 
+			See if someone mentioned someone, and if they did, check if the mentioned user is AFK.
+			If the mentioned user is AFK then send a message to that channel saying the reason why they are AFK.
+		*/
+		if (preg_match_all("/<@!?(\d+)>/", $message->content, $matches)) {
+			foreach ($matches[1] as $id) {
+				$member = $message->guild->members->get("id", $id);
+				$reason = $afk[$id] ?? "Burro(a) do caralho não utilizou `/afk`, por isso não sei qual é..";
 
-	// Get the channel the message was sent in, so we can increment the activity counter
-	switch ($message->channel_id) {
-		case 1019389839457652776: // #desenvolvimento
-			$activity_counter["dev_messages"]++; # Q: wy is this not working? A: because it's not a global variable
-			print("Dev messages: {$activity_counter["dev_messages"]}\n");
-			break;
-		case CHANNEL_ADMIN:
-			$activity_counter["admin_messages"]++;
-			print("Admin messages: {$activity_counter["admin_messages"]}\n");
-			break;
-		case 1038814705197781044: // #clickup
-			$activity_counter["clickup"]++;
-			print("Clickup: {$activity_counter["clickup"]}\n");
-			break;
-		case 1038958502405754922: // #github
-			$activity_counter["github"]++;
-			print("Github: {$activity_counter["github"]}\n");
-			break;
-	}
-
-	/* 
-		See if someone mentioned someone, and if they did, check if the mentioned user is AFK.
-		If the mentioned user is AFK then send a message to that channel saying the reason why they are AFK.
-
-		TODO: Save the reason somewhere so we can get it later.
-	*/
-	if (preg_match_all("/<@!?(\d+)>/", $message->content, $matches)) {
-		foreach ($matches[1] as $id) {
-			$member = $message->guild->members->get("id", $id);
-			if ($member->roles->get("id", ROLE_AFK)) {
-				// $reason = $member->roles->get("id", ROLE_AFK)->name;
-				$message->channel->sendMessage("<@{$member->id}> está AFK");
+				if (IsMemberAFK($member)) {
+					// $reason = $member->roles->get("id", ROLE_AFK)->name;
+					$message->channel->sendMessage("<@{$member->id}> está **AFK**. (**Razão**: {$reason}.)");
+				}
 			}
 		}
 	}
 
-	// include "chatJokes.php";
-
-	// echo "{$message->author->username}: {$message->content}", PHP_EOL;
+	// Detect if user sent an image
+	/* if (count($message->attachments) > 0) {
+		$activity_counter["images"]++;
+		print("Images: {$activity_counter["images"]}\n");
+	} */
 });
 
 $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, Discord $discord) {
@@ -654,14 +659,30 @@ $discord->listenCommand('uptime', function (Interaction $interaction) use ($star
 });
 
 $discord->listenCommand('afk', function (Interaction $interaction) {
-	global $channel_main, $channel_admin;
+	global $afk, $channel_main, $channel_admin;
 
-	$member = $interaction->member;
-	$is_afk = IsMemberAFK($member);
+	$member  = $interaction->member;
+	$is_afk  = IsMemberAFK($member);
+	$message = null;
 
 	SetMemberAFK($member, !$is_afk);
 
-	$message = $is_afk ? "$member não está mais AFK." : "$member ficou agora AFK. Razão: " . ($interaction->data->options["razao"] ? $interaction->data->options["razao"]->value : "Não especificada");
+	// Set AFK reason if there is any
+	if (!$is_afk) {
+		$options = $interaction->data->options;
+		$reason = $options["motivo"]->value;
+		if ($reason) {
+			$message = "**{$member->username}** está agora AFK por `$reason`.";
+			$afk[$member->id] = $reason;
+		} else {
+			$message = "**{$member->username}** está agora AFK.";
+		}
+	} else {
+		$message = "**{$member->username}** já não está AFK.";
+		if($afk[$member->id]) unset($afk[$member->id]);
+	}
+
+	// Send message to channels
 	$channel_main->sendMessage($message);
 	if (IsMemberAdmin($member)) $channel_admin->sendMessage($message);
 
