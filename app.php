@@ -12,6 +12,8 @@ include "Trivia.php";
 
 // date_default_timezone_set('Europe/Lisbon');
 
+define("OWNER_ID", 159298655361171456); // VIRUXE
+
 define("GUILD_ID", 519268261372755968);
 
 define("CHANNEL_ADMIN", 641102112981385226);
@@ -35,28 +37,21 @@ use Discord\Builders\Components\ActionRow;
 use Discord\Builders\Components\TextInput;
 use Discord\Builders\MessageBuilder;
 use Discord\Discord;
-use Discord\Helpers\Collection;
 use Discord\InteractionType;
 use Discord\Parts\Channel\Channel;
-use Discord\Parts\Channel\Forum\Tag;
+use Discord\Parts\Channel\Invite;
 use Discord\Parts\Channel\Message;
-use Discord\Parts\Interactions\Command\Command;
 use Discord\Parts\Interactions\Interaction;
-use Discord\Parts\Part;
-use Discord\Parts\Permissions\ChannelPermission;
 use Discord\Parts\Thread\Thread;
 use Discord\Parts\User\Activity;
 use Discord\Parts\User\Member;
 use Discord\Parts\WebSockets\MessageReaction;
 use Discord\Parts\WebSockets\PresenceUpdate;
 use Discord\Parts\WebSockets\VoiceStateUpdate;
-use Discord\Repository\Guild\MemberRepository;
 use Discord\WebSockets\Event;
-use Discord\WebSockets\Events\ThreadCreate;
 use Discord\WebSockets\Intents;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
-use React\EventLoop\Loop;
 
 print("Starting Padrinho\n\n");
 
@@ -340,6 +335,20 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 			]
 		])
 	); */
+});
+
+// Listen on the INVITE_CREATE event
+$discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
+	global $guild, $channel_admin;
+
+	// Delete invites that are not created by our bot and VIRUXE
+	if ($invite->inviter->id != $discord->id && $invite->inviter->id != OWNER_ID) 
+	{
+		$channel_admin->sendMessage("O utilizador tentou <@{$invite->inviter->id}> criar um convite ($invite->code). O convite foi apagado.");
+		$guild->invites->delete($invite);
+	} else {
+		$channel_admin->sendMessage("<@{$invite->inviter->id}> criou um convite ($invite->code) para o servidor. O convite foi criado com sucesso.");
+	}
 });
 
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use (&$activity_counter) {
