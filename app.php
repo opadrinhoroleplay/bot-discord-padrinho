@@ -344,10 +344,10 @@ $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
 	// Delete invites that are not created by our bot and VIRUXE
 	if ($invite->inviter->id != $discord->id && $invite->inviter->id != OWNER_ID) 
 	{
-		$channel_admin->sendMessage("O utilizador tentou <@{$invite->inviter->id}> criar um convite ($invite->code). O convite foi apagado.");
+		$channel_admin->sendMessage("O utilizador tentou <@{$invite->inviter->id}> criar um convite ($invite->code).");
 		$invite->guild->invites->delete($invite);
 	} else {
-		$channel_admin->sendMessage("<@{$invite->inviter->id}> criou um convite ($invite->code) para o servidor. O convite foi criado com sucesso.");
+		$channel_admin->sendMessage("<@{$invite->inviter->id}> criou um convite ($invite->code) para o servidor.");
 	}
 });
 
