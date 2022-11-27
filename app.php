@@ -131,12 +131,14 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
 	// Loop through all the invites, get their uses and build the $invites_uses array
-	foreach ($guild->invites->toArray() as $invite) {
-		if ($invite->inviter->id != $discord->id) continue; // Only get invites created by our bot
-
-		print("Invite {$invite->code} has {$invite->uses} uses");
-		$invites_uses[$invite->code] = $invite->uses;
-	}
+	$guild->invites->freshen()->done(function (Collection $invites) use ($discord) {
+		foreach ($invites as $invite) {
+			if ($invite->inviter->id != $discord->id) continue; // Only get invites created by our bot
+	
+			print("Invite {$invite->code} has {$invite->uses} uses");
+			$invites_uses[$invite->code] = $invite->uses;
+		}
+	});
 
 	TimeKeeping::hour(function ($hour) use ($discord, $start_time, $channel_main, $channel_admin) {
 		// Check the status of FiveM every hour
@@ -168,9 +170,7 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 
 				// Retrieve counters from database from the previous day
 				$query = $db->query("SELECT type, count FROM discord_counters WHERE day = DATE(DATE_SUB(NOW(), INTERVAL 1 DAY));");
-				while ($counter = $query->fetch_assoc()) {
-					$activity_counter[$counter["type"]] = $counter["count"];
-				}
+				while ($counter = $query->fetch_assoc()) $activity_counter[$counter["type"]] = $counter["count"];
 
 				// Resumir o dia
 				$activity_string = "";
