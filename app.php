@@ -233,7 +233,7 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 				global $guild;
 				// Remove ROLE_PRESENT from everyone that has the ROLE_ADMIN role
 				foreach ($guild->roles->get("id", ROLE_ADMIN)->members as $member) $member->removeRole(ROLE_PRESENT);
-				
+
 				$channel_main->sendMessage("Bom dia pessoal! :partying_face:");
 				$channel_admin->sendMessage("<@&929172055977508924> São agora 8 da manhã seus cabrões. Toca a acordar!\nQuem é que vai marcar presença hoje?")->done(function (Message $message) {
 					global $rollcall_message_id;
@@ -354,8 +354,7 @@ $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
 	global $channel_admin;
 
 	// Delete invites that are not created by our bot and VIRUXE
-	if ($invite->inviter->id != $discord->id && $invite->inviter->id != OWNER_ID) 
-	{
+	if ($invite->inviter->id != $discord->id && $invite->inviter->id != OWNER_ID) {
 		$channel_admin->sendMessage("O utilizador tentou <@{$invite->inviter->id}> criar um convite ($invite->code).");
 		$invite->guild->invites->delete($invite);
 	} else {
@@ -388,11 +387,11 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 		}
 	} else { // If the message was not sent by a bot, then it was sent by a human
 		// print("{$message->author->username} wrote {$message->content} in {$message->channel->name} at " . date("H:i") . PHP_EOL);
-		
+
 		// Check for bad words
-		if(BadWords::Scan($message)) {
+		if (BadWords::Scan($message)) {
 			global $channel_admin;
-            $channel_admin->sendMessage("Eliminei uma mensagem de '{$message->author->username}' no '{$message->channel->name}' por utilizar uma palavra banida: - `$message->content`");
+			$channel_admin->sendMessage("Eliminei uma mensagem de '{$message->author->username}' no '{$message->channel->name}' por utilizar uma palavra banida: - `$message->content`");
 		}
 
 		// Set a Member to not being AFK if they send a message
@@ -406,11 +405,11 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 			foreach ($matches[1] as $id) {
 				$member = $message->guild->members->get("id", $id);
 
-				if($member == NULL || !$member->roles->has(ROLE_AFK)) continue; // If the member is not in the server or is not AFK, then skip
+				if ($member == NULL || !$member->roles->has(ROLE_AFK)) continue; // If the member is not in the server or is not AFK, then skip
 
 				$is_afk = $afk->get($member); // Get the AFK reason
 
-				if($is_afk) {
+				if ($is_afk) {
 					$reason = $is_afk ?? "Burro(a) do caralho não utilizou `/afk`, por isso não sei qual é..";
 					$message->channel->sendMessage("<@{$member->id}> está **AFK**. (**Razão**: {$reason}.)");
 				}
@@ -431,74 +430,55 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 	global $channel_admin, $rollcall_message_id;
 
 	if ($reaction->message_id == $rollcall_message_id) {
-		if($reaction->emoji->name == "👍") { // If the reaction is a thumbs up
-			$thumbs_down_reactions = $reaction->message->reactions->get("👎", "name"); // Get the thumbs down reactions
-			var_dump($thumbs_down_reactions);
+		if ($reaction->emoji->name == "👍") { // If the reaction is a thumbs up
+			$replies = [
+				"%s ok ok, vou querer ver trabalho então",
+				"Fantástico %s! Espero ver trabalho feito daqui a umas horas",
+				"Vai lá %s, não te esqueças de fazer o trabalho",
+				"%s, não te esqueças de marcar presença no ClickUp!",
+				"Vai lá %s, que eu sei que consegues!",
+				"%s ok ok, vamos lá ver se não te vais embora",
+				"%s ok ok, não me quero queixar de nada",
+				"Obrigado %s, agora é que é!",
+				"Certo %s, fala aí com o resto do pessoal para ver quais são as tarefas para hoje",
+				"Vou querer ver trabalho %s",
+				"Porra, %s, que bom ver-te por aqui",
+				"Queres mesmo trabalhar %s? 😳",
+				"Trabalho, trabalho, trabalho... %s",
+				"Vamos lá %s, não te quero ver a dormir",
+				"Vou querer ver trabalho %s, mas não te esqueças de descansar também!",
+				"Quem é que vai marcar presença hoje? %s",
+				"O que é que o %s vai fazer hoje? 🤔",
+				"Já estás atrasado %s. Vai-te foder",
+				"Trabalho feito %s? Espero que sim!",
+				"Boa %s, agora é trabalhar",
+				"Vai-te foder %s.",
+				"Já estás atrasado %s",
+				"%s está presente!",
+				"O %s está presente!",
+				"Ó %s, calma lá, não te esqueças de comer",
+				"Ó %s, não te esqueças de beber água",
+				"Ó %s, não te esqueças de ir à casa de banho",
+				"Ó %s, não te esqueças de respirar",
+				"Ó %s, não te esqueças de dormir",
+				"Ó %s, não te esqueças de beber café",
+				"Ó %s, não te esqueças de fazer exercício",
+				"Ok %s, vamos a isso então! Toca a mostrar trabalho",
+				"Tranquilo %s, vamos lá meter mãos a obra",
+				"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa",
+				"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito",
+				"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito e que não seja só copiar e colar",
+				"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito e que não seja só copiar e colar de um site qualquer"
+			];
 
-			if(!$reaction->message->reactions->get("👎", $reaction->member->id)) {
-				// First delete the bot reaction so it doesn't count as a vote
-				$bot_reaction = $reaction->message->reactions->get($reaction->emoji->name, $discord->id);
-				if($bot_reaction) $reaction->message->reactions->delete($bot_reaction);
-				
-				$replies = [
-					"%s ok ok, vou querer ver trabalho então",
-					"Fantástico %s! Espero ver trabalho feito daqui a umas horas",
-					"Vai lá %s, não te esqueças de fazer o trabalho",
-					"%s, não te esqueças de marcar presença no ClickUp!",
-					"Vai lá %s, que eu sei que consegues!",
-					"%s ok ok, vamos lá ver se não te vais embora",
-					"%s ok ok, não me quero queixar de nada",
-					"Obrigado %s, agora é que é!",
-					"Certo %s, fala aí com o resto do pessoal para ver quais são as tarefas para hoje",
-					"Vou querer ver trabalho %s",
-					"Porra, %s, que bom ver-te por aqui",
-					"Queres mesmo trabalhar %s? 😳",
-					"Trabalho, trabalho, trabalho... %s",
-					"Vamos lá %s, não te quero ver a dormir",
-					"Vou querer ver trabalho %s, mas não te esqueças de descansar também!",
-					"Quem é que vai marcar presença hoje? %s",
-					"O que é que o %s vai fazer hoje? 🤔",
-					"Já estás atrasado %s. Vai-te foder",
-					"Trabalho feito %s? Espero que sim!",
-					"Boa %s, agora é trabalhar",
-					"Vai-te foder %s.",
-					"Já estás atrasado %s",
-					"%s está presente!",
-					"O %s está presente!",
-					"Ó %s, calma lá, não te esqueças de comer",
-					"Ó %s, não te esqueças de beber água",
-					"Ó %s, não te esqueças de ir à casa de banho",
-					"Ó %s, não te esqueças de respirar",
-					"Ó %s, não te esqueças de dormir",
-					"Ó %s, não te esqueças de beber café",
-					"Ó %s, não te esqueças de fazer exercício",
-					"Ok %s, vamos a isso então! Toca a mostrar trabalho",
-					"Tranquilo %s, vamos lá meter mãos a obra",
-					"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa",
-					"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito",
-					"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito e que não seja só copiar e colar",
-					"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito e que não seja só copiar e colar de um site qualquer"
-				];
+			$channel_admin->sendMessage(sprintf($replies[rand(0, count($replies) - 1)] . ". :handshake:", $reaction->member));
 
-				$channel_admin->sendMessage(sprintf($replies[rand(0, count($replies) - 1)] . ". :handshake:", $reaction->member));
+			$reaction->member->addRole(ROLE_PRESENT);
+		} elseif ($reaction->emoji->name == "👎") { // If the user reacted with a thumbs down
+			$channel_admin->sendMessage("Tranquilo {$reaction->member}, vemos-te amanhã então. :wave:");
 
-				$reaction->member->addRole(ROLE_PRESENT);
-			} else { // If the user also reacted with a thumbs down
-				$reaction->message->reactions->delete($reaction);
-			}
-		} elseif($reaction->emoji->name == "👎") { // If the user reacted with a thumbs down
-			if(!$reaction->message->reactions->get("👍", $reaction->member->id)) {
-				// First delete the bot reaction so it doesn't count as a vote
-				$bot_reaction = $reaction->message->reactions->get($reaction->emoji->name, $discord->id);
-				if($bot_reaction) $reaction->message->reactions->delete($bot_reaction);
-
-				$channel_admin->sendMessage("Tranquilo {$reaction->member}, vemos-te amanhã então. :wave:");
-
-				// Remove the present role if the user has it
-				if($reaction->member->roles->has(ROLE_PRESENT)) $reaction->member->removeRole(ROLE_PRESENT);
-			} else { // If the user reacted with a thumbs down but also with a thumbs up
-				$reaction->message->reactions->delete($reaction);
-			}
+			// Remove the present role if the user has it
+			if ($reaction->member->roles->has(ROLE_PRESENT)) $reaction->member->removeRole(ROLE_PRESENT);
 		} else { // If the reaction is not 👍 or 👎
 			$reaction->delete()->done(function () use ($channel_admin, $reaction) {
 				$channel_admin->sendMessage("$reaction->member para quieto fdp. Estás-te a armar quê? Push, queres é festa.");
@@ -651,12 +631,12 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	// $channel_log_ingame->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game", "playing", $game->name, $game->state) : "está agora a jogar **$game->name**") . ($traidorfdp ? " @here" : NULL) : _U("game", "not_playing")));
 });
 
-$discord->listenCommand("rollcall", function (Interaction $interaction) use (&$rollcall_message_id){
-	if($rollcall_message_id) return;
+$discord->listenCommand("rollcall", function (Interaction $interaction) use (&$rollcall_message_id) {
+	if ($rollcall_message_id) return;
 
 	global $channel_admin;
 
-	$channel_admin->sendMessage("<@&929172055977508924> Como é meus meninos?! Quem é que vai marcar presença hoje?")->done(function (Message $message) use (&$rollcall_message_id){
+	$channel_admin->sendMessage("<@&929172055977508924> Como é meus meninos?! Quem é que vai marcar presença hoje?")->done(function (Message $message) use (&$rollcall_message_id) {
 		$message->react("👍");
 		$message->react("👎");
 
@@ -669,52 +649,52 @@ $discord->listenCommand("rollcall", function (Interaction $interaction) use (&$r
 
 $discord->listenCommand('convidar', function (Interaction $interaction) use ($start_time) {
 	// $interaction->acknowledge()->done(function () use ($interaction, $start_time) {
-		$options = $interaction->data->options;
-		$utilizador = $options["utilizador"]->value;
-		// Verify if $utilizador is of format name#discriminator
-		if (!preg_match("/^([a-zA-Z0-9_]{2,32})#([0-9]{4})$/", $utilizador)) {
-			$interaction->respondWithMessage(MessageBuilder::new()->setContent("O utilizador tem de estar no formato `nome#discriminador`."), true);
-			return;
-		}
+	$options = $interaction->data->options;
+	$utilizador = $options["utilizador"]->value;
+	// Verify if $utilizador is of format name#discriminator
+	if (!preg_match("/^([a-zA-Z0-9_]{2,32})#([0-9]{4})$/", $utilizador)) {
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("O utilizador tem de estar no formato `nome#discriminador`."), true);
+		return;
+	}
 
-		// Get the user
-		$user = $interaction->guild->members->get("username", explode("#", $utilizador)[0]);
-		if (!$user) {
-			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Não encontrei nenhum utilizador com o nome `$utilizador`."), true);
-			return;
-		}
+	// Get the user
+	$user = $interaction->guild->members->get("username", explode("#", $utilizador)[0]);
+	if (!$user) {
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Não encontrei nenhum utilizador com o nome `$utilizador`."), true);
+		return;
+	}
 
-		// Verify if the user is already in the guild
-		if ($interaction->guild->members->cache->has($user->id)) {
-			$interaction->respondWithMessage(MessageBuilder::new()->setContent("O utilizador já está no servidor."), true);
-			return;
-		}
+	// Verify if the user is already in the guild
+	if ($interaction->guild->members->cache->has($user->id)) {
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("O utilizador já está no servidor."), true);
+		return;
+	}
 
-		// Find out if a user joined using the invite link
-		/* $invites = $interaction->guild->invites->toArray();
+	// Find out if a user joined using the invite link
+	/* $invites = $interaction->guild->invites->toArray();
 		$invite = array_filter($invites, fn ($invite) => $invite->inviter->id == $interaction->user->id);
 		if (count($invite) == 0) {
 			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Não tens nenhum convite ativo."), true);
 			return;
 		} */
 
-		// Verify if the user is already invited
-		$invites = $interaction->guild->invites;
-		$invite = $invites->find(fn ($invite) => $invite->inviter->id == $interaction->user->id && $invite->uses < 5);
-		if (!$invite) {
-			$invite = $interaction->guild->createInvite([
-				"max_age"   => 0,
-				"max_uses"  => 5,
-				"temporary" => false,
-				"unique"    => true
-			])->done(function ($invite) use ($interaction) {
-				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei um convite para ti: $invite->url"), true);
-			});
-		} else {
-			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Já tens um convite para ti: $invite->url"), true);
-		}
+	// Verify if the user is already invited
+	$invites = $interaction->guild->invites;
+	$invite = $invites->find(fn ($invite) => $invite->inviter->id == $interaction->user->id && $invite->uses < 5);
+	if (!$invite) {
+		$invite = $interaction->guild->createInvite([
+			"max_age"   => 0,
+			"max_uses"  => 5,
+			"temporary" => false,
+			"unique"    => true
+		])->done(function ($invite) use ($interaction) {
+			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei um convite para ti: $invite->url"), true);
+		});
+	} else {
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Já tens um convite para ti: $invite->url"), true);
+	}
 
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Utilizador Convidado: **$utilizador**"), false);
+	$interaction->respondWithMessage(MessageBuilder::new()->setContent("Utilizador Convidado: **$utilizador**"), false);
 	// });
 });
 
@@ -742,7 +722,7 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 			$message = "**$member->username** ficou agora **AFK**: `$reason`";
 		}
 	} else { // No reason provided
-		if(!$is_afk) { // Member is not AFK so we set them AFK, without a reason
+		if (!$is_afk) { // Member is not AFK so we set them AFK, without a reason
 			$afk->set($member, true);
 			$message = "**$member->username** ficou agora **AFK**";
 		} else {
