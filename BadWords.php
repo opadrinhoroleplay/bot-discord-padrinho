@@ -27,11 +27,12 @@ function CheckForBadWords(Message $message): bool
         $message->delete()->done(function () use ($message) {
             print("Deleted message from '{$message->author->username}' in '{$message->channel->name}' for using a bad word.\n");
             $message->member->sendMessage("Não podes falar sobre isso nesse canal (#{$message->channel->name}): `$message->content`");
+            return true;
         }, function ($error) use ($message) {
             print("Failed to delete message from '{$message->author->username}' in '{$message->channel->name}' for using a bad word.\n");
             print("Error: $error\n");
         });
-
-        return true;
     }
+
+    return false;
 }
