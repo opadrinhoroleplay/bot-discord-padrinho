@@ -40,6 +40,7 @@ use Discord\Builders\Components\ActionRow;
 use Discord\Builders\Components\TextInput;
 use Discord\Builders\MessageBuilder;
 use Discord\Discord;
+use Discord\Helpers\Collection;
 use Discord\InteractionType;
 use Discord\Parts\Channel\Channel;
 use Discord\Parts\Channel\Invite;
@@ -74,6 +75,7 @@ $channel_log_afk       = (object) NULL;
 $rollcall_message_id   = null;
 $trivia                = null;
 $afk                   = new AFKHandler($db);
+$invites_uses          = [];
 
 $activity_counter = [
 	"dev_messages"   => 0,
@@ -114,12 +116,12 @@ function GetFiveMStatus()
 $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_counter) {
 	global $guild, $channel_main, $channel_admin, $channel_log_traidores, $channel_log_ingame, $channel_log_voice, $channel_log_afk;
 
+	echo "Bot is ready!", PHP_EOL;
+
 	$discord->updatePresence($discord->factory(\Discord\Parts\User\Activity::class, [
-		'name' => 'vocês seus cabrões!',
+	'name' => 'vocês seus cabrões!',
 		'type' => Activity::TYPE_WATCHING
 	]));
-
-	echo "Bot is ready!", PHP_EOL;
 
 	$guild                 = $discord->guilds->get("id", GUILD_ID);
 	$channel_admin         = $guild->channels->get("id", CHANNEL_ADMIN);
@@ -128,6 +130,14 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 	$channel_log_afk       = $guild->channels->get("id", CHANNEL_LOG_AFK);
 	$channel_log_ingame    = $guild->channels->get("id", CHANNEL_LOG_INGAME);
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
+
+	// Loop through all the invites, get their uses and build the $invites_uses array
+	foreach ($guild->invites->toArray() as $invite) {
+		if ($invite->inviter->id != $discord->id) continue; // Only get invites created by our bot
+
+		print("Invite {$invite->code} has {$invite->uses} uses");
+		$invites_uses[$invite->code] = $invite->uses;
+	}
 
 	TimeKeeping::hour(function ($hour) use ($discord, $start_time, &$activity_counter, $channel_main, $channel_admin) {
 		// Check the status of FiveM every hour
@@ -350,15 +360,32 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 	])); */
 });
 
-$discord->on(Event::GUILD_MEMBER_ADD, function (GuildMemberAdd $event) {
-	global $guild, $channel_main, $channel_admin;
+$discord->on(Event::GUILD_MEMBER_ADD, function (Member $member, Discord $discord) {
+	global $guild, $channel_main;
 	
-	$member = $event->member;
-
 	print("Member $member->username#$member->discriminator joined the server.\n");
 
 	$channel_main->sendMessage("Bem-vindo ao servidor, $member! :godfather:")->done(function (Message $message) {
 		$message->react("👋");
+	});
+
+	// Loop through all the invites and check against the $invites_uses array
+	$guild->invites->done(function (Collection $invites) use ($member, $discord) {
+		global $db, $invites_uses, $channel_admin;
+
+		foreach ($invites as $invite) {
+			// Only check invites created by our bot and if the uses count has increased since the last time we checked
+			if ($invite->inviter->id = $discord->id && $invite->uses > $invites_uses[$invite->code]) {
+				$invites_uses[$invite->code] = $invite->uses;
+				$inviter = $invite->inviter;
+
+				$db->query("INSERT INTO invites_used (member_id, code) VALUES ('$member->id', '$invite->code')");
+
+				// Send a message to the invite creator telling them who joined
+				$inviter->sendMessage("O utilizador $member->username#$member->discriminator ($member->id) entrou no servidor através do teu convite.");
+				$channel_admin->sendMessage("O utilizador **$member->username#$member->discriminator** foi convidado por **$inviter->username#$inviter->discriminator** através do convite $invite->code.");
+			}
+		}
 	});
 });
 
@@ -675,11 +702,12 @@ $discord->listenCommand("rollcall", function (Interaction $interaction) use (&$r
 $discord->listenCommand('convite', function (Interaction $interaction) {
 	global $db;
 
+	$username = $interaction->user->username;
+
 	// Check if Member already has an invite code for himself
-	$query = $db->query("SELECT code FROM invites WHERE member_id = {$interaction->user->id}");
+	$query = $db->query("SELECT code FROM invites WHERE member_username = '{$username}';");
 	if($query->num_rows > 0) {
-		$username = $interaction->user->username;
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, já tens um código de convite! Copia-o e envia-o aos teus amigos para que eles possam entrar no servidor!\nhttp://opadrinhoroleplay.pt/convidar.php?membro=" . strtolower($username)), true);
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convidar.php?membro=" . strtolower($username)), true);
 	} else { // Member doesn't have an invite code yet
 		// Create an Invite so we can get the code
 		global $guild;
@@ -688,7 +716,7 @@ $discord->listenCommand('convite', function (Interaction $interaction) {
 			"max_uses"  => 0,
 			"temporary" => false,
 			"unique"    => true
-		], "Codigo de Convite para '{$interaction->user->username}'")->done(function (Invite $invite) use ($interaction, $db) {
+		], "Codigo de Convite para '{$interaction->user->username}'")->done(function (Invite $invite) use ($interaction, $db, $username) {
 			// Check in the 'discord_members' table if the member already exists. If not, create a new entry
 			$query = $db->query("SELECT username FROM discord_members WHERE id = {$interaction->user->id}");
 			if($query->num_rows == 0) {
@@ -696,9 +724,9 @@ $discord->listenCommand('convite', function (Interaction $interaction) {
 			}
 
 			// Get the code and insert it into the database
-			if($db->query("INSERT INTO invites (member_id, code) VALUES ('{$interaction->user->id}', '$invite->code')")) {
-				$username = strtolower($interaction->user->username);
-				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, aqui está o teu código de convite! Copia-o e envia-o aos teus amigos para que eles possam entrar no servidor!\nhttp://opadrinhoroleplay.pt/convidar.php?membro=" . strtolower($username)), true);
+			$invite_insert = $db->query("INSERT INTO invites (code, member_username) VALUES ('$invite->code', '{$username}')");
+			if($invite_insert === TRUE) {
+				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convidar.php?membro=" . strtolower($username)), true);
 			} else {
 				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Ocorreu um erro ao gerar o teu código de convite! Fala com o <@" . OWNER_ID . ">"), true);
 			}
