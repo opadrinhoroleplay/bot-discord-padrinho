@@ -442,16 +442,18 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 
 	global $channel_admin, $rollcall_message_id;
 
-	$message = $reaction->message;
-	$message_author = $message->author;
-	$reaction_author = $reaction->member->user;
+	$message         = $reaction->message;
+	$message_author  = $message->author;
+	$reaction_author = $reaction->member;
 
+	// Check if the reaction was on a greeting message from the bot and if the user reacted with the 👋 emoji, then send a message to the channel
 	if($reaction->emoji->name == "👋" && $message->channel_id == CHANNEL_MAIN && $message_author->bot) {
 		$mentioned_member = $message->mentions->first();
 		
 		$message->channel->sendMessage("$reaction_author dá-te as boas-vindas $mentioned_member! :wave:");
 	}
 
+	// Check if the reaction was on the rollcall message and if the member reacted with the correct emojis or not
 	if ($reaction->message_id == $rollcall_message_id) {
 		if ($reaction->emoji->name == "👍") { // If the reaction is a thumbs up
 			$replies = [
