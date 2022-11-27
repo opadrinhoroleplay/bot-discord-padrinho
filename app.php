@@ -470,7 +470,7 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 	global $channel_admin, $rollcall_message_id;
 
 	$message         = $reaction->message;
-	$message_author  = $message->author;
+	$message_author  = $message->member->user;
 	$reaction_author = $reaction->member;
 
 	// Check if the reaction was on a greeting message from the bot and if the user reacted with the 👋 emoji, then send a message to the channel
