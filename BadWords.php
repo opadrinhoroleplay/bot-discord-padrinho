@@ -11,11 +11,10 @@ function CheckForBadWords(Message $message): bool
         "nopixel" => NULL,
     ];
 
-    $channel = $message->channel;
     $found   = false;
 
     foreach ($words as $word => $channels) {
-        if ($channels === NULL || in_array($channel->id, $channels)) { // Check if the word is allowed in the channel
+        if ($channels === NULL || in_array($message->channel->id, $channels)) { // Check if the word is allowed in the channel
             if (strpos($message->content, $word) !== false) {
                 $found = true;
                 break;
@@ -25,8 +24,15 @@ function CheckForBadWords(Message $message): bool
 
     // If found and not an admin
     if ($found) {
-        $message->delete();
-        $message->member->sendMessage("Não podes falar sobre isso, nesse canal. (Canal: `$channel->name` - `$message->content`)");
+        $message->delete()->done(function () use ($message) {
+            global $channel_admin;
+            print("Deleted message from '{$message->author->username}' in '{$message->channel->name}' for using a bad word.\n");
+            $message->member->sendMessage("Não podes falar sobre isso nesse canal (#{$message->channel->name}): - `$message->content`");
+            $channel_admin->sendMessage("Eliminei uma mensagem de '{$message->author->username}' no '{$message->channel->name}' por utilizar uma palavra banida: - `$message->content`");
+        }, function ($error) use ($message) {
+            print("Failed to delete message from '{$message->author->username}' in '{$message->channel->name}' for using a bad word.\n");
+            print("Error: $error\n");
+        });
 
         return true;
     }
