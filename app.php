@@ -234,7 +234,7 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 
 				$uptime = $start_time->diff(new DateTime());
 
-				if ($uptime > 86400) { // 24 hours
+				if ($uptime < 86400) { // 24 hours
 					$uptime_string = $uptime->format("%a dias, %h horas, %i minutos e %s segundos");
 
 					$activity_string .= "**Ainda não passaram 24 horas ($uptime_string) desde que o bot foi ligado, portanto estas estatísticas não estão completas.**";
@@ -406,37 +406,38 @@ $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
 
 // Any actual message in the guild
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use ($afk, &$activity_counter) {
+	// With this it doesn't matter if it was a bot or not
+	// Get the channel the message was sent in, so we can increment the activity counter for that channel
+	$counter_type = NULL;
+
+	switch ($message->channel_id) {
+		case 1019389839457652776: // #desenvolvimento
+			$counter_type = "dev_messages";
+			break;
+		case CHANNEL_ADMIN:
+			$counter_type = "admin_messages";
+			break;
+		case 1038814705197781044: // #clickup
+			$counter_type = "clickup";
+			break;
+		case 1038958502405754922: // #github
+			$counter_type = "github";
+			break;
+	}
+
+	// If the channel is one of the ones we want to track, then increment the counter
+	if($counter_type) {
+		global $db;
+		$query = $db->query("UPDATE discord_counters SET count = count + 1 WHERE type = '$counter_type' AND day = DATE(NOW());");
+		if(!$query) {
+			print("Error updating counter: " . $db->error . "\n");
+		}
+	}
+
 	// Ignore messages from bots
 	if ($message->author->bot) {
-		$type = NULL;
-
-		// Get the channel the message was sent in, so we can increment the activity counter
-		switch ($message->channel_id) {
-			case 1019389839457652776: // #desenvolvimento
-				$type = "dev_messages";
-				break;
-			case CHANNEL_ADMIN:
-				$type = "admin_messages";
-				break;
-			case 1038814705197781044: // #clickup
-				$type = "clickup";
-				break;
-			case 1038958502405754922: // #github
-				$type = "github";
-				break;
-		}
-
-		if($type) {
-			// Increment the activity counter
-			global $db;
-			$query = $db->query("UPDATE discord_counters SET count = count + 1 WHERE type = '$type';");
-			if(!$query) {
-				print("Error updating counter: " . $db->error . "\n");
-			}
-		}
+		
 	} else { // If the message was not sent by a bot, then it was sent by a human
-		// print("{$message->author->username} wrote {$message->content} in {$message->channel->name} at " . date("H:i") . PHP_EOL);
-
 		// Check for bad words
 		if (BadWords::Scan($message)) {
 			global $channel_admin;
