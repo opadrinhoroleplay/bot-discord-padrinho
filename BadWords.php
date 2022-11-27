@@ -17,12 +17,12 @@ class BadWords
     // Scan a message for bad words
     public static function Scan(Message $message): bool
     {
-        if($message->member->roles->has(ROLE_ADMIN)) return false;
+        if($message->channel->is_private) return false; // Only scan messages if they are not from the bot's private channel
+        if($message->member->roles->has(ROLE_ADMIN)) return false; // Don't scan messages from admins
 
         $found = false;
         
-        global $words;
-        foreach ($words as $word => $channels) {
+        foreach (self::$words as $word => $channels) {
             if ($channels === NULL || in_array($message->channel->id, $channels)) { // Check if the word is allowed in the channel
                 if (strpos($message->content, $word) !== false) {
                     $found = true;
