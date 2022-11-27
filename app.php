@@ -370,12 +370,12 @@ $discord->on(Event::GUILD_MEMBER_ADD, function (Member $member, Discord $discord
 	});
 
 	// Loop through all the invites and check against the $invites_uses array
-	$guild->invites->done(function (Collection $invites) use ($member, $discord) {
+	$guild->invites->freshen()->done(function (Collection $invites) use ($member, $discord) {
 		global $db, $invites_uses, $channel_admin;
 
 		foreach ($invites as $invite) {
 			// Only check invites created by our bot and if the uses count has increased since the last time we checked
-			if ($invite->inviter->id = $discord->id && $invite->uses > $invites_uses[$invite->code]) {
+			if ($invite->inviter->id == $discord->id && $invite->uses > $invites_uses[$invite->code]) {
 				$invites_uses[$invite->code] = $invite->uses;
 				$inviter = $invite->inviter;
 
