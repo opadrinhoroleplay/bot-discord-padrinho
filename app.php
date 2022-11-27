@@ -52,6 +52,7 @@ use Discord\Parts\WebSockets\MessageReaction;
 use Discord\Parts\WebSockets\PresenceUpdate;
 use Discord\Parts\WebSockets\VoiceStateUpdate;
 use Discord\WebSockets\Event;
+use Discord\WebSockets\Events\GuildMemberAdd;
 use Discord\WebSockets\Intents;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -319,7 +320,7 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 		$guild->commands->delete($command);
 	} */
 
-	// $discord->application->commands->delete("1020324792815071232");
+	// $discord->application->commands->delete("1046060312647979179");
 	// $guild->commands->delete("1020083011934507141");
 
 	/* $discord->application->commands->save(new Command($discord, [
@@ -344,14 +345,26 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 	); */
 
 	/* $discord->application->commands->save(new Command($discord, [
-		"name" => "rollcall",
-		"description" => "Manda verificar a presença no servidor.",
+		"name" => "convite",
+		"description" => "Obtém o teu código de convite, para que os teus amigos possam entrar no Servidor.",
 	])); */
+});
+
+$discord->on(Event::GUILD_MEMBER_ADD, function (GuildMemberAdd $event) {
+	global $guild, $channel_main, $channel_admin;
+	
+	$member = $event->member;
+
+	print("Member $member->username#$member->discriminator joined the server.\n");
+
+	$channel_main->sendMessage("Bem-vindo ao servidor, $member! :godfather:")->done(function (Message $message) {
+		$message->react("👋");
+	});
 });
 
 // Creating Invites
 $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
-	global $channel_admin;
+	/* global $channel_admin;
 
 	// Delete invites that are not created by our bot and VIRUXE
 	if ($invite->inviter->id != $discord->id && $invite->inviter->id != OWNER_ID) {
@@ -359,7 +372,7 @@ $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
 		$invite->guild->invites->delete($invite);
 	} else {
 		$channel_admin->sendMessage("<@{$invite->inviter->id}> criou um convite ($invite->code) para o servidor.");
-	}
+	} */
 });
 
 // Any actual message in the guild
@@ -428,6 +441,16 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 	if ($reaction->member->user->bot) return;
 
 	global $channel_admin, $rollcall_message_id;
+
+	$message = $reaction->message;
+	$message_author = $message->author;
+	$reaction_author = $reaction->member->user;
+
+	if($reaction->emoji->name == "👋" && $message->channel_id == CHANNEL_MAIN && $message_author->bot) {
+		$mentioned_member = $message->mentions->first();
+		
+		$message->channel->sendMessage("$reaction_author dá-te as boas-vindas $mentioned_member! :wave:");
+	}
 
 	if ($reaction->message_id == $rollcall_message_id) {
 		if ($reaction->emoji->name == "👍") { // If the reaction is a thumbs up
@@ -647,55 +670,39 @@ $discord->listenCommand("rollcall", function (Interaction $interaction) use (&$r
 	$interaction->deleteOriginalResponse();
 });
 
-$discord->listenCommand('convidar', function (Interaction $interaction) use ($start_time) {
-	// $interaction->acknowledge()->done(function () use ($interaction, $start_time) {
-	$options = $interaction->data->options;
-	$utilizador = $options["utilizador"]->value;
-	// Verify if $utilizador is of format name#discriminator
-	if (!preg_match("/^([a-zA-Z0-9_]{2,32})#([0-9]{4})$/", $utilizador)) {
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("O utilizador tem de estar no formato `nome#discriminador`."), true);
-		return;
-	}
+$discord->listenCommand('convite', function (Interaction $interaction) {
+	global $db;
 
-	// Get the user
-	$user = $interaction->guild->members->get("username", explode("#", $utilizador)[0]);
-	if (!$user) {
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Não encontrei nenhum utilizador com o nome `$utilizador`."), true);
-		return;
-	}
-
-	// Verify if the user is already in the guild
-	if ($interaction->guild->members->cache->has($user->id)) {
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("O utilizador já está no servidor."), true);
-		return;
-	}
-
-	// Find out if a user joined using the invite link
-	/* $invites = $interaction->guild->invites->toArray();
-		$invite = array_filter($invites, fn ($invite) => $invite->inviter->id == $interaction->user->id);
-		if (count($invite) == 0) {
-			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Não tens nenhum convite ativo."), true);
-			return;
-		} */
-
-	// Verify if the user is already invited
-	$invites = $interaction->guild->invites;
-	$invite = $invites->find(fn ($invite) => $invite->inviter->id == $interaction->user->id && $invite->uses < 5);
-	if (!$invite) {
-		$invite = $interaction->guild->createInvite([
+	// Check if Member already has an invite code for himself
+	$query = $db->query("SELECT code FROM invites WHERE member_id = {$interaction->user->id}");
+	if($query->num_rows > 0) {
+		$username = $interaction->user->username;
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, já tens um código de convite! Copia-o e envia-o aos teus amigos para que eles possam entrar no servidor!\nhttp://opadrinhoroleplay.pt/convidar.php?membro=" . strtolower($username)), true);
+	} else { // Member doesn't have an invite code yet
+		// Create an Invite so we can get the code
+		global $guild;
+		$guild->channels->get("id", CHANNEL_MAIN)->createInvite([
 			"max_age"   => 0,
-			"max_uses"  => 5,
+			"max_uses"  => 0,
 			"temporary" => false,
 			"unique"    => true
-		])->done(function ($invite) use ($interaction) {
-			$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei um convite para ti: $invite->url"), true);
-		});
-	} else {
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Já tens um convite para ti: $invite->url"), true);
-	}
+		], "Codigo de Convite para '{$interaction->user->username}'")->done(function (Invite $invite) use ($interaction, $db) {
+			// Check in the 'discord_members' table if the member already exists. If not, create a new entry
+			$query = $db->query("SELECT username FROM discord_members WHERE id = {$interaction->user->id}");
+			if($query->num_rows == 0) {
+				$db->query("INSERT INTO discord_members (id, username) VALUES ({$interaction->user->id}, '{$interaction->user->username}')");
+			}
 
-	$interaction->respondWithMessage(MessageBuilder::new()->setContent("Utilizador Convidado: **$utilizador**"), false);
-	// });
+			// Get the code and insert it into the database
+			if($db->query("INSERT INTO invites (member_id, code) VALUES ('{$interaction->user->id}', '$invite->code')")) {
+				$username = strtolower($interaction->user->username);
+				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, aqui está o teu código de convite! Copia-o e envia-o aos teus amigos para que eles possam entrar no servidor!\nhttp://opadrinhoroleplay.pt/convidar.php?membro=" . strtolower($username)), true);
+			} else {
+				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Ocorreu um erro ao gerar o teu código de convite! Fala com o <@" . OWNER_ID . ">"), true);
+			}
+			return;
+		});
+	}
 });
 
 $discord->listenCommand('uptime', function (Interaction $interaction) use ($start_time) {

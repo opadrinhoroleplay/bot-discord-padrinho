@@ -2480,12 +2480,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/discord-php/DiscordPHP.git",
-                "reference": "dd43f0c8fe25513a33ee29749e7f25b23d56933a"
+                "reference": "3ced97a8095f9d782b8a688df6f3e32db0c9fd0d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/dd43f0c8fe25513a33ee29749e7f25b23d56933a",
-                "reference": "dd43f0c8fe25513a33ee29749e7f25b23d56933a",
+                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/3ced97a8095f9d782b8a688df6f3e32db0c9fd0d",
+                "reference": "3ced97a8095f9d782b8a688df6f3e32db0c9fd0d",
                 "shasum": ""
             },
             "require": {
@@ -2548,7 +2548,7 @@
                 "issues": "https://github.com/discord-php/DiscordPHP/issues",
                 "source": "https://github.com/discord-php/DiscordPHP/tree/master"
             },
-            "time": "2022-11-23T17:35:43+00:00"
+            "time": "2022-11-27T14:22:05+00:00"
         },
         {
             "name": "trafficcophp/bytebuffer",
