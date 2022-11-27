@@ -29,6 +29,7 @@ define("CHANNEL_VOICE_ADMIN", 1018817931200700436);
 define("CHANNEL_VOICE_DISCUSSION", 960557917784920104);
 define("CHANNEL_VOICE_LOBBY", 1019237971217612840);
 
+define("ROLE_PRESENT", 1046384929803608114);
 define("ROLE_ADMIN", 929172055977508924);
 define("ROLE_AFK", 1020313717805699185);
 define("ROLE_INGAME", 1020385919695585311);
@@ -128,6 +129,7 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
 	TimeKeeping::hour(function ($hour) use ($discord, $start_time, &$activity_counter, $channel_main, $channel_admin) {
+		// Check the status of FiveM every hour
 		static $fivem = NULL; // 99.97% uptime so yes it's mostly up
 
 		$online = GetFiveMStatus();
@@ -228,10 +230,16 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 				$channel_main->sendMessage("**Resumo do dia**:\n{$activity_string}");
 				break;
 			case 8:
-				$channel_admin->sendMessage("<@&929172055977508924> São agora 8 da manhã seus cabrões. Toca a acordar!\nQuem é que vai marcar presença hoje? Cliquem no 🖐🏻.")->done(function (Message $message) {
+				global $guild;
+				// Remove ROLE_PRESENT from everyone that has the ROLE_ADMIN role
+				foreach ($guild->roles->get("id", ROLE_ADMIN)->members as $member) $member->removeRole(ROLE_PRESENT);
+				
+				$channel_main->sendMessage("Bom dia pessoal! :partying_face:");
+				$channel_admin->sendMessage("<@&929172055977508924> São agora 8 da manhã seus cabrões. Toca a acordar!\nQuem é que vai marcar presença hoje?")->done(function (Message $message) {
 					global $rollcall_message_id;
 
-					$message->react("🖐🏻");
+					$message->react("👍");
+					$message->react("👎");
 
 					$rollcall_message_id = $message->id;
 				});
@@ -311,8 +319,8 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 		$guild->commands->delete($command);
 	} */
 
-	// $discord->application->commands->delete("1031904535381278721");
-	// $guild->commands->delete("1030821837397041182");
+	// $discord->application->commands->delete("1020324792815071232");
+	// $guild->commands->delete("1020083011934507141");
 
 	/* $discord->application->commands->save(new Command($discord, [
 		"custom_id" => "shutup",
@@ -334,6 +342,11 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 			]
 		])
 	); */
+
+	/* $discord->application->commands->save(new Command($discord, [
+		"name" => "rollcall",
+		"description" => "Manda verificar a presença no servidor.",
+	])); */
 });
 
 // Creating Invites
@@ -418,54 +431,79 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 	global $channel_admin, $rollcall_message_id;
 
 	if ($reaction->message_id == $rollcall_message_id) {
-		if ($reaction->emoji->name != "🖐🏻") {
+		if($reaction->emoji->name == "👍") { // If the reaction is a thumbs up
+			$thumbs_down_reactions = $reaction->message->reactions->get("👎", "name"); // Get the thumbs down reactions
+			var_dump($thumbs_down_reactions);
+
+			if(!$reaction->message->reactions->get("👎", $reaction->member->id)) {
+				// First delete the bot reaction so it doesn't count as a vote
+				$bot_reaction = $reaction->message->reactions->get($reaction->emoji->name, $discord->id);
+				if($bot_reaction) $reaction->message->reactions->delete($bot_reaction);
+				
+				$replies = [
+					"%s ok ok, vou querer ver trabalho então",
+					"Fantástico %s! Espero ver trabalho feito daqui a umas horas",
+					"Vai lá %s, não te esqueças de fazer o trabalho",
+					"%s, não te esqueças de marcar presença no ClickUp!",
+					"Vai lá %s, que eu sei que consegues!",
+					"%s ok ok, vamos lá ver se não te vais embora",
+					"%s ok ok, não me quero queixar de nada",
+					"Obrigado %s, agora é que é!",
+					"Certo %s, fala aí com o resto do pessoal para ver quais são as tarefas para hoje",
+					"Vou querer ver trabalho %s",
+					"Porra, %s, que bom ver-te por aqui",
+					"Queres mesmo trabalhar %s? 😳",
+					"Trabalho, trabalho, trabalho... %s",
+					"Vamos lá %s, não te quero ver a dormir",
+					"Vou querer ver trabalho %s, mas não te esqueças de descansar também!",
+					"Quem é que vai marcar presença hoje? %s",
+					"O que é que o %s vai fazer hoje? 🤔",
+					"Já estás atrasado %s. Vai-te foder",
+					"Trabalho feito %s? Espero que sim!",
+					"Boa %s, agora é trabalhar",
+					"Vai-te foder %s.",
+					"Já estás atrasado %s",
+					"%s está presente!",
+					"O %s está presente!",
+					"Ó %s, calma lá, não te esqueças de comer",
+					"Ó %s, não te esqueças de beber água",
+					"Ó %s, não te esqueças de ir à casa de banho",
+					"Ó %s, não te esqueças de respirar",
+					"Ó %s, não te esqueças de dormir",
+					"Ó %s, não te esqueças de beber café",
+					"Ó %s, não te esqueças de fazer exercício",
+					"Ok %s, vamos a isso então! Toca a mostrar trabalho",
+					"Tranquilo %s, vamos lá meter mãos a obra",
+					"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa",
+					"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito",
+					"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito e que não seja só copiar e colar",
+					"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito e que não seja só copiar e colar de um site qualquer"
+				];
+
+				$channel_admin->sendMessage(sprintf($replies[rand(0, count($replies) - 1)] . ". :handshake:", $reaction->member));
+
+				$reaction->member->addRole(ROLE_PRESENT);
+			} else { // If the user also reacted with a thumbs down
+				$reaction->message->reactions->delete($reaction);
+			}
+		} elseif($reaction->emoji->name == "👎") { // If the user reacted with a thumbs down
+			if(!$reaction->message->reactions->get("👍", $reaction->member->id)) {
+				// First delete the bot reaction so it doesn't count as a vote
+				$bot_reaction = $reaction->message->reactions->get($reaction->emoji->name, $discord->id);
+				if($bot_reaction) $reaction->message->reactions->delete($bot_reaction);
+
+				$channel_admin->sendMessage("Tranquilo {$reaction->member}, vemos-te amanhã então. :wave:");
+
+				// Remove the present role if the user has it
+				if($reaction->member->roles->has(ROLE_PRESENT)) $reaction->member->removeRole(ROLE_PRESENT);
+			} else { // If the user reacted with a thumbs down but also with a thumbs up
+				$reaction->message->reactions->delete($reaction);
+			}
+		} else { // If the reaction is not 👍 or 👎
 			$reaction->delete()->done(function () use ($channel_admin, $reaction) {
-				$channel_admin->sendMessage("$reaction->member para quieto fdp.");
+				$channel_admin->sendMessage("$reaction->member para quieto fdp. Estás-te a armar quê? Push, queres é festa.");
 			});
-			return;
 		}
-
-		$replies = [
-			"%s ok ok, vou querer ver trabalho então",
-			"Fantástico %s! Espero ver trabalho feito daqui a umas horas",
-			"Vai lá %s, não te esqueças de fazer o trabalho",
-			"%s, não te esqueças de marcar presença no ClickUp!",
-			"Vai lá %s, que eu sei que consegues!",
-			"%s ok ok, vamos lá ver se não te vais embora",
-			"%s ok ok, não me quero queixar de nada",
-			"Obrigado %s, agora é que é!",
-			"Certo %s, fala aí com o resto do pessoal para ver quais são as tarefas para hoje",
-			"Vou querer ver trabalho %s",
-			"Porra, %s, que bom ver-te por aqui",
-			"Queres mesmo trabalhar %s? 😳",
-			"Trabalho, trabalho, trabalho... %s",
-			"Vamos lá %s, não te quero ver a dormir",
-			"Vou querer ver trabalho %s, mas não te esqueças de descansar também!",
-			"Quem é que vai marcar presença hoje? %s",
-			"O que é que o %s vai fazer hoje? 🤔",
-			"Já estás atrasado %s. Vai-te foder",
-			"Trabalho feito %s? Espero que sim!",
-			"Boa %s, agora é trabalhar",
-			"Vai-te foder %s.",
-			"Já estás atrasado %s",
-			"%s está presente!",
-			"O %s está presente!",
-			"Ó %s, calma lá, não te esqueças de comer",
-			"Ó %s, não te esqueças de beber água",
-			"Ó %s, não te esqueças de ir à casa de banho",
-			"Ó %s, não te esqueças de respirar",
-			"Ó %s, não te esqueças de dormir",
-			"Ó %s, não te esqueças de beber café",
-			"Ó %s, não te esqueças de fazer exercício",
-			"Ok %s, vamos a isso então! Toca a mostrar trabalho",
-			"Tranquilo %s, vamos lá meter mãos a obra",
-			"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa",
-			"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito",
-			"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito e que não seja só copiar e colar",
-			"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito e que não seja só copiar e colar de um site qualquer"
-		];
-
-		$channel_admin->sendMessage(sprintf($replies[rand(0, count($replies) - 1)] . ". :handshake:", $reaction->member));
 	}
 });
 
@@ -611,6 +649,22 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 
 	// if($traidorfdp) $channel_log_traidores->sendMessage("**{$member->username}** está a jogar roleplay noutro servidor.");
 	// $channel_log_ingame->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game", "playing", $game->name, $game->state) : "está agora a jogar **$game->name**") . ($traidorfdp ? " @here" : NULL) : _U("game", "not_playing")));
+});
+
+$discord->listenCommand("rollcall", function (Interaction $interaction) use (&$rollcall_message_id){
+	if($rollcall_message_id) return;
+
+	global $channel_admin;
+
+	$channel_admin->sendMessage("<@&929172055977508924> Como é meus meninos?! Quem é que vai marcar presença hoje?")->done(function (Message $message) use (&$rollcall_message_id){
+		$message->react("👍");
+		$message->react("👎");
+
+		$rollcall_message_id = $message->id;
+	});
+
+	$interaction->acknowledgeWithResponse();
+	$interaction->deleteOriginalResponse();
 });
 
 $discord->listenCommand('convidar', function (Interaction $interaction) use ($start_time) {
