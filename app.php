@@ -9,6 +9,7 @@ include "language.php";
 include "GameSessions.class.php";
 include "TimeKeeping.php";
 include "Trivia.php";
+include "AFK.php";
 
 // date_default_timezone_set('Europe/Lisbon');
 
@@ -57,6 +58,8 @@ use Discord\Parts\Interactions\Command\Command;
 
 print("Starting Padrinho\n\n");
 
+$db = new mysqli("p:{$config->database->host}", $config->database->user, $config->database->pass, $config->database->database);
+
 $start_time            = new DateTime();
 $guild                 = (object) NULL;
 $channel_admin         = (object) NULL;
@@ -67,7 +70,7 @@ $channel_log_voice     = (object) NULL;
 $channel_log_afk       = (object) NULL;
 $rollcall_message_id   = null;
 $trivia                = null;
-$afk                   = [];
+$afk                   = new AFKHandler($db);
 
 $activity_counter = [
 	"dev_messages"   => 0,
@@ -75,8 +78,6 @@ $activity_counter = [
 	"clickup"        => 0,
 	"admin_messages" => 0,
 ];
-
-$db = new mysqli("p:{$config->database->host}", $config->database->user, $config->database->pass, $config->database->database);
 
 // $game_sessions = new GameSessions($db);
 
@@ -131,7 +132,7 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 		$online = GetFiveMStatus();
 
 		if ($fivem == NULL) { // First hour without having set a first value so we set it now
-			$channel_main->sendMessage("O FiveM encontra-se " . ($online ? "online" : "offline") . "! **Nota**: Monitorizamos o estado do FiveM a cada hora e notificamos se o mesmo se altera.");
+			// $channel_main->sendMessage("O FiveM encontra-se " . ($online ? "online" : "offline") . "! **Nota**: Monitorizamos o estado do FiveM a cada hora e notificamos se o mesmo se altera.");
 			$fivem = $online;
 		}
 
@@ -349,7 +350,7 @@ $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
 });
 
 // Any actual message in the guild
-$discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use (&$activity_counter) {
+$discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use ($afk, &$activity_counter) {
 	// Ignore messages from bots
 	if ($message->author->bot) {
 		// Get the channel the message was sent in, so we can increment the activity counter
@@ -372,10 +373,10 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 				break;
 		}
 	} else { // If the message was not sent by a bot, then it was sent by a human
-		print("{$message->author->username} ({$message->author->id}) wrote {$message->content} in {$message->channel->name} ({$message->channel->id}) at " . date("H:i") . PHP_EOL);
+		// print("{$message->author->username} wrote {$message->content} in {$message->channel->name} at " . date("H:i") . PHP_EOL);
 
 		// Set a Member to not being AFK if they send a message
-		if(IsMemberAFK($message->member)) SetMemberAFK($message->member, false);
+		$afk->set($message->member, false);
 
 		/* 
 			See if someone mentioned someone, and if they did, check if the mentioned user is AFK.
@@ -384,10 +385,13 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 		if (preg_match_all("/<@!?(\d+)>/", $message->content, $matches)) {
 			foreach ($matches[1] as $id) {
 				$member = $message->guild->members->get("id", $id);
-				$reason = $afk[$id] ?? "Burro(a) do caralho não utilizou `/afk`, por isso não sei qual é..";
 
-				if (IsMemberAFK($member)) {
-					// $reason = $member->roles->get("id", ROLE_AFK)->name;
+				if($member == NULL || !$member->roles->has(ROLE_AFK)) continue; // If the member is not in the server or is not AFK, then skip
+
+				$is_afk = $afk->get($member); // Get the AFK reason
+
+				if($is_afk) {
+					$reason = $is_afk ?? "Burro(a) do caralho não utilizou `/afk`, por isso não sei qual é..";
 					$message->channel->sendMessage("<@{$member->id}> está **AFK**. (**Razão**: {$reason}.)");
 				}
 			}
@@ -560,22 +564,24 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 
 		return;
 	} else { // We already have a previous status saved
-		$last_status = $member_status[$member->id];
+		global $afk;
+
+		$prev_status = $member_status[$member->id];
 		$curr_status = $member->status;
 
-		if ($last_status != $curr_status) {
+		if ($prev_status != $curr_status) {
 			if ($curr_status == "idle") {
-				SetMemberAFK($member, true);
+				$afk->set($member, true);
 				// if ($member->getVoiceChannel()) $member->moveMember(NULL, "Became AFK."); // Remove member from the voice channels if they become AFK
-			} else SetMemberAFK($member, false);
+			} else $afk->set($member, false);
 
-			print("'$member->username' updated status: '$last_status' -> '$curr_status'\n");
+			print("'$member->username' updated status: '$prev_status' -> '$curr_status'\n");
 
 			$member_status[$member->id] = $curr_status; // Update the status
 
 			return;
 		} else {
-			print("'$member->username' updated their presence, other than the status.\n");
+			// print("'$member->username' updated their presence, other than the status.\n");
 		}
 	}
 
@@ -636,10 +642,10 @@ $discord->listenCommand('convidar', function (Interaction $interaction) use ($st
 		$invite = $invites->find(fn ($invite) => $invite->inviter->id == $interaction->user->id && $invite->uses < 5);
 		if (!$invite) {
 			$invite = $interaction->guild->createInvite([
-				"max_age" => 0,
-				"max_uses" => 5,
+				"max_age"   => 0,
+				"max_uses"  => 5,
 				"temporary" => false,
-				"unique" => true
+				"unique"    => true
 			])->done(function ($invite) use ($interaction) {
 				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei um convite para ti: $invite->url"), true);
 			});
@@ -662,31 +668,35 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 	global $afk, $channel_main, $channel_admin;
 
 	$member  = $interaction->member;
-	$is_afk  = IsMemberAFK($member);
+	$is_afk  = $afk->get($member);
 	$message = null;
 
-	SetMemberAFK($member, !$is_afk);
+	if ($interaction->data->options) { // Member provided a reason so set them AFK with one
+		$reason = $interaction->data->options["razao"]->value;
+		$afk->set($member, true, $reason);
 
-	// Set AFK reason if there is any
-	if (!$is_afk) {
-		$options = $interaction->data->options;
-		$reason = $options["motivo"]->value;
-		if ($reason) {
-			$message = "**{$member->username}** está agora AFK por `$reason`.";
-			$afk[$member->id] = $reason;
-		} else {
-			$message = "**{$member->username}** está agora AFK.";
+		if ($is_afk) { // Member is already AFK
+			$message = "**$member->username** actualizou a sua razão de **AFK** para: `$reason`";
+		} else { // Member is not AFK
+			$message = "**$member->username** ficou agora **AFK**: `$reason`";
 		}
-	} else {
-		$message = "**{$member->username}** já não está AFK.";
-		if($afk[$member->id]) unset($afk[$member->id]);
+	} else { // No reason provided
+		if(!$is_afk) { // Member is not AFK so we set them AFK, without a reason
+			$afk->set($member, true);
+			$message = "**$member->username** ficou agora **AFK**";
+		} else {
+			$afk->set($member, false); // Remove the AFK status
+			$message = "**$member->username** voltou de **AFK**";
+		}
 	}
 
-	// Send message to channels
-	$channel_main->sendMessage($message);
-	if (IsMemberAdmin($member)) $channel_admin->sendMessage($message);
+	// Send a message to channels
+	$channel_main->sendMessage("$message.");
+	if (IsMemberAdmin($member)) $channel_admin->sendMessage("$message.");
 
-	$interaction->respondWithMessage(MessageBuilder::new()->setContent($is_afk ? _U("afk", "self_not_afk") : _U("afk", "self_afk")), true);
+	// $interaction->respondWithMessage(MessageBuilder::new()->setContent($is_afk ? _U("afk", "self_not_afk") : _U("afk", "self_afk")), true);
+	$interaction->acknowledgeWithResponse();
+	$interaction->deleteOriginalResponse();
 });
 
 $discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $newState, Discord $discord, $oldState) {
@@ -825,24 +835,6 @@ $discord->run();
     echo "Current memory usage: {$formatted}\n";
 }); */
 
-function SetMemberAFK(Member $member, bool $toggle): bool
-{
-	$is_afk = IsMemberAFK($member);
-
-	if ($is_afk === $toggle) return false;
-
-	global $channel_log_afk;
-
-	if ($toggle) {
-		$member->addRole(ROLE_AFK, "Ficou AFK.");
-		$member->moveMember(NULL); // Remove member from Voice Channels
-	} else $member->removeRole(ROLE_AFK, "Voltou de AFK.");
-
-	$channel_log_afk->sendMessage($member->username . ($toggle ? " ficou AFK." : " voltou de AFK."));
-
-	return true;
-}
-
 function SetMemberIngame(Member $member, bool $toggle): bool
 {
 	$is_ingame      = IsMemberIngame($member);
@@ -863,11 +855,6 @@ function SetMemberIngame(Member $member, bool $toggle): bool
 	$channel_admin->sendMessage($member->username . ($toggle ? " entrou no servidor." : " saiu do servidor."));
 
 	return true;
-}
-
-function IsMemberAFK(Member $member): bool
-{
-	return $member->roles->get("id", ROLE_AFK) ? true : false;
 }
 
 function IsMemberAdmin(Member $member): bool
