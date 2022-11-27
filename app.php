@@ -53,7 +53,6 @@ use Discord\Parts\WebSockets\MessageReaction;
 use Discord\Parts\WebSockets\PresenceUpdate;
 use Discord\Parts\WebSockets\VoiceStateUpdate;
 use Discord\WebSockets\Event;
-use Discord\WebSockets\Events\GuildMemberAdd;
 use Discord\WebSockets\Intents;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -139,7 +138,7 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 		$invites_uses[$invite->code] = $invite->uses;
 	}
 
-	TimeKeeping::hour(function ($hour) use ($discord, $start_time, &$activity_counter, $channel_main, $channel_admin) {
+	TimeKeeping::hour(function ($hour) use ($discord, $start_time, $channel_main, $channel_admin) {
 		// Check the status of FiveM every hour
 		static $fivem = NULL; // 99.97% uptime so yes it's mostly up
 
@@ -164,9 +163,14 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 
 		switch ($hour) {
 			case 00:
-				$insult = getInsult();
-				$channel_admin->sendMessage("Pessoal o <@267082772667957250> saiu agora do trabalho. Toca a chatear esse $insult.");
+				global $db;
+				$activity_counter = [];
 
+				// Retrieve counters from database from the previous day
+				$query = $db->query("SELECT type, count FROM discord_counters WHERE day = DATE(DATE_SUB(NOW(), INTERVAL 1 DAY));");
+				while ($counter = $query->fetch_assoc()) {
+					$activity_counter[$counter["type"]] = $counter["count"];
+				}
 
 				// Resumir o dia
 				$activity_string = "";
@@ -222,13 +226,11 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 						break;
 				}
 
-				// Resetar os contadores
-				$activity_counter = [
-					"dev_messages"   => 0,
-					"github"         => 0,
-					"clickup"        => 0,
-					"admin_messages" => 0,
-				];
+				// Init the counters for the next day
+				global $db;
+				foreach ($activity_counter as $type => $value) {
+					$db->query("INSERT INTO discord_counters (type) VALUES ('$type');");
+				}
 
 				$uptime = $start_time->diff(new DateTime());
 
@@ -406,24 +408,31 @@ $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use ($afk, &$activity_counter) {
 	// Ignore messages from bots
 	if ($message->author->bot) {
+		$type = NULL;
+
 		// Get the channel the message was sent in, so we can increment the activity counter
 		switch ($message->channel_id) {
 			case 1019389839457652776: // #desenvolvimento
-				$activity_counter["dev_messages"]++; # Q: wy is this not working? A: because it's not a global variable
-				print("Dev messages: {$activity_counter["dev_messages"]}\n");
+				$type = "dev_messages";
 				break;
 			case CHANNEL_ADMIN:
-				$activity_counter["admin_messages"]++;
-				print("Admin messages: {$activity_counter["admin_messages"]}\n");
+				$type = "admin_messages";
 				break;
 			case 1038814705197781044: // #clickup
-				$activity_counter["clickup"]++;
-				print("Clickup: {$activity_counter["clickup"]}\n");
+				$type = "clickup";
 				break;
 			case 1038958502405754922: // #github
-				$activity_counter["github"]++;
-				print("Github: {$activity_counter["github"]}\n");
+				$type = "github";
 				break;
+		}
+
+		if($type) {
+			// Increment the activity counter
+			global $db;
+			$query = $db->query("UPDATE discord_counters SET count = count + 1 WHERE type = '$type';");
+			if(!$query) {
+				print("Error updating counter: " . $db->error . "\n");
+			}
 		}
 	} else { // If the message was not sent by a bot, then it was sent by a human
 		// print("{$message->author->username} wrote {$message->content} in {$message->channel->name} at " . date("H:i") . PHP_EOL);
