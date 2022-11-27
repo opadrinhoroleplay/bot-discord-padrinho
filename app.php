@@ -374,12 +374,12 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 				break;
 		}
 	} else { // If the message was not sent by a bot, then it was sent by a human
-		global $channel_main;
+		global $channel_admin;
 		// print("{$message->author->username} wrote {$message->content} in {$message->channel->name} at " . date("H:i") . PHP_EOL);
 
 		// Check for bad words
 		if(CheckForBadWords($message)) {
-			$channel_main->sendMessage("{$message->author->mention} disse algo de errado: `$message->content`.");
+            $channel_admin->sendMessage("Eliminei uma mensagem de '{$message->author->username}' no '{$message->channel->name}' por utilizar uma palavra banida: - `$message->content`");
 		}
 
 		// Set a Member to not being AFK if they send a message
