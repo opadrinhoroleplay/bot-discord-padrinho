@@ -2,37 +2,47 @@
 
 use Discord\Parts\Channel\Message;
 
-function CheckForBadWords(Message $message): bool
+class BadWords
 {
-    if($message->member->roles->has(ROLE_ADMIN)) return false;
-
-    $words = [
-        "ban" => [CHANNEL_MAIN],
+    private $words = [
+        "ban"     => [CHANNEL_MAIN],
         "nopixel" => NULL,
+        "leaked"  => NULL,
+        "leak"    => NULL,
+        "leaks"   => NULL,
+        "esx"     => NULL,
+        "qbcore"  => NULL,
     ];
 
-    $found   = false;
+    // Scan a message for bad words
+    public static function Scan(Message $message): bool
+    {
+        if($message->member->roles->has(ROLE_ADMIN)) return false;
 
-    foreach ($words as $word => $channels) {
-        if ($channels === NULL || in_array($message->channel->id, $channels)) { // Check if the word is allowed in the channel
-            if (strpos($message->content, $word) !== false) {
-                $found = true;
-                break;
+        $found = false;
+        
+        global $words;
+        foreach ($words as $word => $channels) {
+            if ($channels === NULL || in_array($message->channel->id, $channels)) { // Check if the word is allowed in the channel
+                if (strpos($message->content, $word) !== false) {
+                    $found = true;
+                    break;
+                }
             }
         }
+    
+        // If found and not an admin
+        if ($found) {
+            $message->delete()->done(function () use ($message) {
+                print("Deleted message from '{$message->author->username}' in '{$message->channel->name}' for using a bad word.\n");
+                $message->member->sendMessage("Não podes falar sobre isso nesse canal (#{$message->channel->name}): `$message->content`");
+                return true;
+            }, function ($error) use ($message) {
+                print("Failed to delete message from '{$message->author->username}' in '{$message->channel->name}' for using a bad word.\n");
+                print("Error: $error\n");
+            });
+        }
+    
+        return false;
     }
-
-    // If found and not an admin
-    if ($found) {
-        $message->delete()->done(function () use ($message) {
-            print("Deleted message from '{$message->author->username}' in '{$message->channel->name}' for using a bad word.\n");
-            $message->member->sendMessage("Não podes falar sobre isso nesse canal (#{$message->channel->name}): `$message->content`");
-            return true;
-        }, function ($error) use ($message) {
-            print("Failed to delete message from '{$message->author->username}' in '{$message->channel->name}' for using a bad word.\n");
-            print("Error: $error\n");
-        });
-    }
-
-    return false;
 }

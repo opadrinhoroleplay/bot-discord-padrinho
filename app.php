@@ -374,11 +374,11 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 				break;
 		}
 	} else { // If the message was not sent by a bot, then it was sent by a human
-		global $channel_admin;
 		// print("{$message->author->username} wrote {$message->content} in {$message->channel->name} at " . date("H:i") . PHP_EOL);
-
+		
 		// Check for bad words
-		if(CheckForBadWords($message)) {
+		if(BadWords::Scan($message)) {
+			global $channel_admin;
             $channel_admin->sendMessage("Eliminei uma mensagem de '{$message->author->username}' no '{$message->channel->name}' por utilizar uma palavra banida: - `$message->content`");
 		}
 
@@ -631,7 +631,7 @@ $discord->listenCommand('convidar', function (Interaction $interaction) use ($st
 		}
 
 		// Verify if the user is already in the guild
-		if ($interaction->guild->members->has($user->id)) {
+		if ($interaction->guild->members->cache->has($user->id)) {
 			$interaction->respondWithMessage(MessageBuilder::new()->setContent("O utilizador já está no servidor."), true);
 			return;
 		}
