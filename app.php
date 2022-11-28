@@ -718,7 +718,7 @@ $discord->listenCommand('convite', function (Interaction $interaction) {
 	// Check if Member already has an invite code for himself
 	$query = $db->query("SELECT code FROM invites WHERE inviter_id = '{$interaction->user->id}';");
 	if($query->num_rows > 0) {
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convidar.php?membro=" . $inviter_slug), true);
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convidar.php?slug=$inviter_slug"), true);
 	} else { // Member doesn't have an invite code yet
 		// Create an Invite so we can get the code
 		global $guild;
@@ -737,7 +737,7 @@ $discord->listenCommand('convite', function (Interaction $interaction) {
 			// Get the code and insert it into the database
 			$invite_insert = $db->query("INSERT INTO invites (code, inviter_id, inviter_slug) VALUES ('$invite->code', '{$interaction->user->id}', '$inviter_slug')");
 			if($invite_insert === TRUE) {
-				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convidar.php?membro=" . $inviter_slug), true);
+				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convidar.php?slug=$inviter_slug"), true);
 			} else {
 				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Ocorreu um erro ao gerar o teu código de convite! Fala com o <@" . OWNER_ID . ">"), true);
 			}
