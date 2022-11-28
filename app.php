@@ -237,7 +237,7 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 				if ($uptime < 86400) { // 24 hours
 					$uptime_string = $uptime->format("%a dias, %h horas, %i minutos e %s segundos");
 
-					$activity_string .= "**Ainda não passaram 24 horas ($uptime_string) desde que o bot foi ligado, portanto estas estatísticas não estão completas.**";
+					$activity_string .= "\n\n**Ainda não passaram 24 horas ($uptime_string) desde que o bot foi ligado, portanto estas estatísticas não estão completas.**";
 				}
 
 				$channel_main->sendMessage("**Resumo do dia**:\n{$activity_string}");
