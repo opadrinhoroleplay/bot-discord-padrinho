@@ -226,21 +226,14 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 						break;
 				}
 
+				$channel_main->sendMessage("**Resumo do dia**:\n{$activity_string}");
+				
 				// Init the counters for the next day
 				global $db;
 				foreach ($activity_counter as $type => $value) {
 					$db->query("INSERT INTO discord_counters (type) VALUES ('$type');");
 				}
 
-				$uptime = $start_time->diff(new DateTime());
-
-				if ($uptime < 86400) { // 24 hours
-					$uptime_string = $uptime->format("%a dias, %h horas, %i minutos e %s segundos");
-
-					$activity_string .= "\n\n**Ainda não passaram 24 horas ($uptime_string) desde que o bot foi ligado, portanto estas estatísticas não estão completas.**";
-				}
-
-				$channel_main->sendMessage("**Resumo do dia**:\n{$activity_string}");
 				break;
 			case 8:
 				global $guild;
