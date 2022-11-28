@@ -135,7 +135,7 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 		foreach ($invites as $invite) {
 			if ($invite->inviter->id != $discord->id) continue; // Only get invites created by our bot
 	
-			print("Invite {$invite->code} has {$invite->uses} uses");
+			print("Invite {$invite->code} has {$invite->uses} uses\n");
 			$invites_uses[$invite->code] = $invite->uses;
 		}
 	});
