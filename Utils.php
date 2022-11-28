@@ -19,12 +19,12 @@ function slugify($text)
 	// lowercase
 	$text = strtolower($text);
 
-	if (empty($text)) return 'n-a';
+	if (empty($text)) return getRandomWord();
 
 	return $text;
 }
 
-function getRandomWord(): string|null {
+function getRandomWord(bool $lowercase = true): string|null {
 	$words = file_get_contents("words.txt");
 	$words = explode("\n", $words);
 
@@ -32,7 +32,7 @@ function getRandomWord(): string|null {
 		$word = $words[rand(0, count($words)-1)];
 	} while (str_contains($word, "-") || strlen($word) >= 8); // Portuguese words can have dashes, so we'll just avoid them in this scenario
 
-	return strtolower($word);
+	return $lowercase ? strtolower($word) : $word;
 }
 
 function generateWhatThreeWords(): string {
