@@ -141,6 +141,24 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 	});
 
 	TimeKeeping::hour(function ($hour) use ($discord, $start_time, $channel_main, $channel_admin) {
+		// Verify the database connection is still alive
+		global $config, $db;
+		if (!$db->ping()) {
+			print("Database connection lost, reconnecting...\n");
+			$db = new mysqli("p:{$config->database->host}", $config->database->user, $config->database->pass, $config->database->database);
+
+			if ($db->connect_error) {
+				$error_string = "Database connection failed: {$db->connect_error}";
+				print($error_string);
+				$channel_admin->sendMessage($error_string);
+				die();
+			} else {
+				$success_string = "Database connection re-established";
+				print($success_string);
+				$channel_admin->sendMessage($success_string);
+			}
+		}
+
 		// Check the status of FiveM every hour
 		static $fivem = NULL; // 99.97% uptime so yes it's mostly up
 
@@ -227,7 +245,7 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 				}
 
 				$channel_main->sendMessage("**Resumo do dia**:\n{$activity_string}");
-				
+
 				// Init the counters for the next day
 				global $db;
 				foreach ($activity_counter as $type => $value) {
@@ -453,7 +471,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 				$is_afk = $afk->get($member); // Get the AFK reason
 
 				if ($is_afk) {
-					$reason = $is_afk ?? "Burro(a) do caralho não utilizou `/afk`, por isso não sei qual é..";
+					$reason = empty($is_afk) ? "Burro(a) do caralho não utilizou `/afk`, por isso não sei qual é.." : $is_afk;
 					$message->channel->sendMessage("<@{$member->id}> está **AFK**. (**Razão**: {$reason}.)");
 				}
 			}
