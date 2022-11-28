@@ -19,7 +19,7 @@ function slugify($text)
 	// lowercase
 	$text = strtolower($text);
 
-	if (empty($text)) return getRandomWord();
+	if (empty($text)) return slugify(getInsult());
 
 	return $text;
 }
