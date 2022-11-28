@@ -709,15 +709,31 @@ $discord->listenCommand("rollcall", function (Interaction $interaction) use (&$r
 	$interaction->deleteOriginalResponse();
 });
 
+function slugify($string) {
+	$string = preg_replace('/[^\pL\d]+/u', '-', $string);
+	$string = iconv('utf-8', 'us-ascii//TRANSLIT', $string);
+	$string = preg_replace('/[^-\w]+/', '', $string);
+	$string = trim($string, '-');
+	$string = preg_replace('~-+~', '-', $string);
+	$string = strtolower($string);
+
+	if (empty($string)) {
+		return 'n-a';
+	}
+
+	return $string;
+}
+
 $discord->listenCommand('convite', function (Interaction $interaction) {
 	global $db;
 
 	$username = $interaction->user->username;
+	$inviter_slug = slugify($username);
 
 	// Check if Member already has an invite code for himself
-	$query = $db->query("SELECT code FROM invites WHERE member_username = '{$username}';");
+	$query = $db->query("SELECT code FROM invites WHERE inviter_id = '{$interaction->user->id}';");
 	if($query->num_rows > 0) {
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convidar.php?membro=" . strtolower($username)), true);
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convidar.php?membro=" . $inviter_slug), true);
 	} else { // Member doesn't have an invite code yet
 		// Create an Invite so we can get the code
 		global $guild;
@@ -726,7 +742,7 @@ $discord->listenCommand('convite', function (Interaction $interaction) {
 			"max_uses"  => 0,
 			"temporary" => false,
 			"unique"    => true
-		], "Codigo de Convite para '{$interaction->user->username}'")->done(function (Invite $invite) use ($interaction, $db, $username) {
+		], "Codigo de Convite para '{$interaction->user->username}'")->done(function (Invite $invite) use ($interaction, $db, $username, $inviter_slug) {
 			// Check in the 'discord_members' table if the member already exists. If not, create a new entry
 			$query = $db->query("SELECT username FROM discord_members WHERE id = {$interaction->user->id}");
 			if($query->num_rows == 0) {
@@ -734,9 +750,9 @@ $discord->listenCommand('convite', function (Interaction $interaction) {
 			}
 
 			// Get the code and insert it into the database
-			$invite_insert = $db->query("INSERT INTO invites (code, member_username) VALUES ('$invite->code', '{$username}')");
+			$invite_insert = $db->query("INSERT INTO invites (code, inviter_id, inviter_slug) VALUES ('$invite->code', '{$interaction->user->id}', '$inviter_slug')");
 			if($invite_insert === TRUE) {
-				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convidar.php?membro=" . strtolower($username)), true);
+				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convidar.php?membro=" . $inviter_slug), true);
 			} else {
 				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Ocorreu um erro ao gerar o teu código de convite! Fala com o <@" . OWNER_ID . ">"), true);
 			}
