@@ -468,11 +468,11 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 
 				if ($member == NULL || !$member->roles->has(ROLE_AFK)) continue; // If the member is not in the server or is not AFK, then skip
 
-				$is_afk = $afk->get($member); // Get the AFK reason
+				$is_afk = $afk->get($member); // If true then member didn't set a reason, if string then member set a reason
 
 				if ($is_afk) {
-					$reason = empty($is_afk) ? "Burro(a) do caralho não utilizou `/afk`, por isso não sei qual é.." : $is_afk;
-					$message->channel->sendMessage("<@{$member->id}> está **AFK**. (**Razão**: {$reason}.)");
+					$reason = gettype($is_afk) !== "string" ? "Burro(a) do caralho não utilizou `/afk`, por isso não sei qual é.." : $is_afk;
+					$message->channel->sendMessage("O utilizador **{$member->username}** está AFK. **Razão**: `$reason`");
 				}
 			}
 		}
