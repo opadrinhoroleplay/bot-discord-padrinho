@@ -11,6 +11,7 @@ include "TimeKeeping.php";
 include "Trivia.php";
 include "AFK.php";
 include "BadWords.php";
+include "FiveM.php";
 
 // date_default_timezone_set('Europe/Lisbon');
 
@@ -96,22 +97,6 @@ $discord = new Discord([
 	'storeMessages'  => true
 ]);
 
-function GetFiveMStatus()
-{
-	// Scrape https://status.cfx.re/
-	// Get the last rect element in the first svg element
-	// Get the fill attribute of that element of the rect
-	// If it's #05f4a7 then it's online, otherwise it's offline
-
-	$doc = new DOMDocument();
-	@$doc->loadHTML(file_get_contents("https://status.cfx.re/"));
-	$xpath = new DOMXPath($doc,);
-	$rect  = $xpath->query("//svg/rect[last()]")[0]; // Other elements are generated during runtime so this seemed the best bet
-	$color = $rect->getAttribute("fill");
-
-	return $color === "#05f4a7" ? true : false;
-}
-
 $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_counter) {
 	global $guild, $channel_main, $channel_admin, $channel_log_traidores, $channel_log_ingame, $channel_log_voice, $channel_log_afk;
 
@@ -162,7 +147,7 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 		// Check the status of FiveM every hour
 		static $fivem = NULL; // 99.97% uptime so yes it's mostly up
 
-		$online = GetFiveMStatus();
+		$online = FiveM::Status();
 
 		if ($fivem == NULL) { // First hour without having set a first value so we set it now
 			// $channel_main->sendMessage("O FiveM encontra-se " . ($online ? "online" : "offline") . "! **Nota**: Monitorizamos o estado do FiveM a cada hora e notificamos se o mesmo se altera.");
@@ -913,12 +898,7 @@ $discord->listenCommand('trivia', function (Interaction $interaction) {
 
 // Listen to the command 'fivem' to check the status
 $discord->listenCommand('fivem', function (Interaction $interaction) {
-	$interaction->acknowledgeWithResponse()->done(function () use ($interaction) {
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("A verificar o estado do servidor..."));
-	}, function ($error) {
-		print("Impossivel verificar o estado do servidor.\n$error\n");
-	});
-	$interaction->respondWithMessage(MessageBuilder::new()->setContent("**Estado actual do FiveM**: " . (GetFiveMStatus() ? 'Online' : 'Offline')));
+	$interaction->respondWithMessage(MessageBuilder::new()->setContent("**Estado actual do FiveM**: " . (FiveM::Status() ? 'Online' : 'Offline')));
 });
 
 $discord->run();
