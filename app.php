@@ -727,17 +727,18 @@ $discord->listenCommand('convite', function (Interaction $interaction) {
 			"max_uses"  => 0,
 			"temporary" => false,
 			"unique"    => true
-		], "Codigo de Convite para '{$interaction->user->username}'")->done(function (Invite $invite) use ($interaction, $db, $username, $inviter_slug) {
+		], "Codigo de Convite para '{$username}'")->done(function (Invite $invite) use ($interaction, $db, $username, $inviter_slug) {
 			// Check in the 'discord_members' table if the member already exists. If not, create a new entry
 			$query = $db->query("SELECT username FROM discord_members WHERE id = {$interaction->user->id}");
-			if($query->num_rows == 0) {
-				$db->query("INSERT INTO discord_members (id, username) VALUES ({$interaction->user->id}, '{$interaction->user->username}')");
-			}
+			if($query->num_rows == 0) $db->query("INSERT INTO discord_members (id, username) VALUES ({$interaction->user->id}, '{$username}')");
 
 			// Get the code and insert it into the database
 			$invite_insert = $db->query("INSERT INTO invites (code, inviter_id, inviter_slug) VALUES ('$invite->code', '{$interaction->user->id}', '$inviter_slug')");
 			if($invite_insert === TRUE) {
-				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convidar.php?slug=$inviter_slug"), true);
+				global $channel_admin;
+				$invite_url = "http://opadrinhoroleplay.pt/convidar.php?slug=$inviter_slug";
+				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: $invite_url"), true);
+				$channel_admin->sendMessage("O utilizador **$username** criou um convite. (Slug: '$inviter_slug')");
 			} else {
 				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Ocorreu um erro ao gerar o teu código de convite! Fala com o <@" . OWNER_ID . ">"), true);
 			}
