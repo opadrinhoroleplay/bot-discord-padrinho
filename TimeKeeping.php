@@ -12,17 +12,6 @@ class TimeKeeping {
 
             // Create hour scanner
             Loop::addPeriodicTimer(60*60, function () use ($callback) {
-                // Check if mysql connection is still alive
-                if(!mysqli_ping($GLOBALS["db"])) {
-                    $config = $GLOBALS["config"]; 
-                    if($GLOBALS["db"] = mysqli_connect("p:{$config->database->host}", $config->database->user, $config->database->pass, $config->database->database)) {
-                        print("Reconnected to database");
-                    } else {
-                        echo "Failed to connect to MySQL: " . mysqli_connect_error();
-                        exit;
-                    }
-                }
-                
                 $callback(date("H"));
             });
         });
