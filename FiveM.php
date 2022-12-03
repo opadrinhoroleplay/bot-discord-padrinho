@@ -11,7 +11,7 @@ class FiveM {
     static function Status(callable $callback = null): bool|null {
         $doc = new DOMDocument();
         @$doc->loadHTML(file_get_contents("https://status.cfx.re/"));
-        $xpath = new DOMXPath($doc,);
+        $xpath = new DOMXPath($doc);
         $rect  = $xpath->query("//svg/rect[last()]")[0]; // Other elements are generated during runtime so this seemed the best bet
         $color = $rect->getAttribute("fill");
 
