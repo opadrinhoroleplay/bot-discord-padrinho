@@ -102,10 +102,7 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 
 	echo "Bot is ready!", PHP_EOL;
 
-	$discord->updatePresence($discord->factory(\Discord\Parts\User\Activity::class, [
-	'name' => 'vocês seus cabrões!',
-		'type' => Activity::TYPE_WATCHING
-	]));
+	$discord->updatePresence($discord->factory(\Discord\Parts\User\Activity::class, [ 'name' => 'vocês seus cabrões!', 'type' => Activity::TYPE_WATCHING ]));
 
 	$guild                 = $discord->guilds->get("id", GUILD_ID);
 	$channel_admin         = $guild->channels->get("id", CHANNEL_ADMIN);
@@ -126,34 +123,15 @@ $discord->on('ready', function (Discord $discord) use ($start_time, &$activity_c
 	});
 
 	TimeKeeping::hour(function ($hour) use ($discord, $start_time, $channel_main, $channel_admin) {
-		// Verify the database connection is still alive
-		global $config, $db;
-		if (!$db->ping()) {
-			print("Database connection lost, reconnecting...\n");
-			$db = new mysqli("p:{$config->database->host}", $config->database->user, $config->database->pass, $config->database->database);
-
-			if ($db->connect_error) {
-				$error_string = "Database connection failed: {$db->connect_error}";
-				print($error_string);
-				$channel_admin->sendMessage($error_string);
-				die();
-			} else {
-				$success_string = "Database connection re-established";
-				print($success_string);
-				$channel_admin->sendMessage($success_string);
-			}
-		}
-
 		// Check the status of FiveM every hour
 		static $fivem = NULL; // 99.97% uptime so yes it's mostly up
 
 		$online = FiveM::Status();
 
-		if ($fivem == NULL) { // First hour without having set a first value so we set it now
-			// $channel_main->sendMessage("O FiveM encontra-se " . ($online ? "online" : "offline") . "! **Nota**: Monitorizamos o estado do FiveM a cada hora e notificamos se o mesmo se altera.");
-			$fivem = $online;
-		}
+		// Initialize the variable
+		if ($fivem == NULL) $fivem = $online;
 
+		// If the status changed, send a message
 		if ($online) {
 			if (!$fivem) {
 				$channel_main->sendMessage("O FiveM está de volta! :partying_face:");
@@ -363,7 +341,7 @@ $discord->on(Event::GUILD_MEMBER_ADD, function (Member $member, Discord $discord
 	
 	print("Member $member->username#$member->discriminator joined the server.\n");
 
-	$channel_main->sendMessage("Bem-vindo ao servidor, $member! :godfather:")->done(function (Message $message) {
+	$channel_main->sendMessage("Bem-vindo ao servidor, $member!")->done(function (Message $message) {
 		$message->react("👋");
 	});
 
@@ -379,9 +357,13 @@ $discord->on(Event::GUILD_MEMBER_ADD, function (Member $member, Discord $discord
 
 				$db->query("INSERT INTO invites_used (member_id, code) VALUES ('$member->id', '$invite->code')");
 
+				// Get the name of the invter from the database
+				$query = $db->query("SELECT m.username as username FROM invites i INNER JOIN discord_members m ON i.inviter_id = m.id WHERE i.code = '$invite->code';");
+				$inviter_name = $query->fetch_assoc()["username"];
+
 				// Send a message to the invite creator telling them who joined
 				$inviter->sendMessage("O utilizador $member->username#$member->discriminator ($member->id) entrou no servidor através do teu convite.");
-				$channel_admin->sendMessage("O utilizador **$member->username#$member->discriminator** foi convidado por **$inviter->username#$inviter->discriminator** através do convite $invite->code.");
+				$channel_admin->sendMessage("O utilizador **$member->username#$member->discriminator** foi convidado por **$inviter_name** através do convite **$invite->code**.");
 			}
 		}
 	});
@@ -475,15 +457,12 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 
 	global $channel_admin, $rollcall_message_id;
 
-	$message         = $reaction->message;
-	$message_author  = $message->member->user;
-	$reaction_author = $reaction->member;
-
 	// Check if the reaction was on a greeting message from the bot and if the user reacted with the 👋 emoji, then send a message to the channel
-	if($reaction->emoji->name == "👋" && $message->channel_id == CHANNEL_MAIN && $message_author->bot) {
-		$mentioned_member = $message->mentions->first();
+	// ! Fuck this shit. Doesn't work. I'm not going to waste more time on this.
+	if($reaction->emoji->name == "👋" && $reaction->channel->id == CHANNEL_MAIN && $reaction->user->bot) {
+		$mentioned_member = $reaction->message->mentions->first();
 		
-		$message->channel->sendMessage("$reaction_author dá-te as boas-vindas $mentioned_member! :wave:");
+		$reaction->channel->sendMessage("{$reaction->user} dá-te as boas-vindas $mentioned_member! :wave:");
 	}
 
 	// Check if the reaction was on the rollcall message and if the member reacted with the correct emojis or not
