@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 include "vendor/autoload.php";
@@ -61,7 +60,7 @@ use Monolog\Logger;
 
 use Discord\Parts\Interactions\Command\Command;
 
-print("Starting Padrinho\n\n");
+print("Loading Fredo...\n\n");
 
 $db = new DatabaseConnection("p:{$config->database->host}", $config->database->user, $config->database->pass, $config->database->database);
 
@@ -96,10 +95,10 @@ $discord = new Discord([
 	'storeMessages'  => true
 ]);
 
-$discord->on('ready', function (Discord $discord) {
+$discord->on('ready', function (Discord $discord) use ($db) {
 	global $guild, $channel_main, $channel_admin, $channel_log_traidores, $channel_log_ingame, $channel_log_voice, $channel_log_afk;
 
-	echo "Bot is ready!", PHP_EOL;
+	echo "Bot is ready!\n\n";
 
 	$discord->updatePresence($discord->factory(\Discord\Parts\User\Activity::class, [ 'name' => 'vocês seus cabrões!', 'type' => Activity::TYPE_WATCHING ]));
 
@@ -112,36 +111,44 @@ $discord->on('ready', function (Discord $discord) {
 	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
 
 	// Loop through all the invites, get their uses and build the $invites_uses array
-	$guild->invites->freshen()->done(function (Collection $invites) use ($discord) {
+	// TODO: Manage invites being active or not
+	print("Checking invites...\n");
+	$guild->invites->freshen()->done(function (Collection $invites) use ($discord, $db, $guild, $channel_admin) {
 		foreach ($invites as $invite) {
 			if ($invite->inviter->id != $discord->id) continue; // Only get invites created by our bot
 	
 			print("Invite {$invite->code} has {$invite->uses} uses\n");
 			$invites_uses[$invite->code] = $invite->uses;
+
+			// Check invite uses against the database, in the 'invites_used' table and alert if it's different
+			$query = $db->query("SELECT COUNT(*) FROM invites_used WHERE code = '{$invite->code}';");
+			$db_invite_uses = $query->fetch_column();
+
+			// If the invite was used more times than the database says, it means the bot was offline when it was used
+			// Send a message to the invite creator to let them know and get in contact with VIRUXE
+			if ($db_invite_uses < $invite->uses) {
+				print("Invite {$invite->code} has {$invite->uses} uses, but the database says it has {$db_invite_uses} uses\n");
+				$channel_admin->sendMessage("O número de convites usados para o convite **{$invite->code}** está diferente do que está na base de dados! ({$invite->uses} vs {$db_invite_uses})");
+
+				// Get the invite creator's member id from database using their invite code
+				$query = $db->query("SELECT inviter_id FROM invites WHERE code = '{$invite->code}';");
+				$inviter_id = $query->fetch_column();
+
+				if($inviter_id) {
+					// Get the invite creator's member object
+					$inviter = $guild->members->get("id", $inviter_id);
+					$inviter->sendMessage("O número de entradas para o teu convite está diferente do que está registado na base de dados. Por favor, contacta o <@" . OWNER_ID . "> para resolver isto.");
+				}
+			}
 		}
+		print("Done!\n\n");
 	});
 
-	TimeKeeping::hour(function ($hour) use ($discord, $start_time, $channel_main, $channel_admin) {
+	TimeKeeping::hour(function ($hour) use ($channel_main, $channel_admin) {
 		// Check the status of FiveM every hour
-		static $fivem = NULL; // 99.97% uptime so yes it's mostly up
-
-		$online = FiveM::Status();
-
-		// Initialize the variable
-		if ($fivem == NULL) $fivem = $online;
-
-		// If the status changed, send a message
-		if ($online) {
-			if (!$fivem) {
-				$channel_main->sendMessage("O FiveM está de volta! :partying_face:");
-				$fivem = true;
-			}
-		} else {
-			if ($fivem) {
-				$channel_main->sendMessage("O FiveM ficou offline! :sob:");
-				$fivem = false;
-			}
-		}
+		FiveM::Status(function($status) use ($channel_main) { 
+			$channel_main->sendMessage($status ? "O FiveM está de volta! :partying_face:" : "O FiveM ficou offline! :sob:");
+		});
 
 		switch ($hour) {
 			case 00:
@@ -335,34 +342,40 @@ $discord->on('ready', function (Discord $discord) {
 	])); */
 });
 
+// When a member joins the server
 $discord->on(Event::GUILD_MEMBER_ADD, function (Member $member, Discord $discord) {
 	global $guild, $channel_main;
+
+	$new_member = "$member->username#$member->discriminator";
 	
-	print("Member $member->username#$member->discriminator joined the server.\n");
+	print("[JOIN] Member $new_member joined the server.\n");
 
-	$channel_main->sendMessage("Bem-vindo ao servidor, $member!")->done(function (Message $message) {
-		$message->react("👋");
-	});
+	$channel_main->sendMessage("Bem-vindo ao servidor, $member!")->done(function (Message $message) { $message->react("👋"); });
 
-	// Loop through all the invites and check against the $invites_uses array
-	$guild->invites->freshen()->done(function (Collection $invites) use ($member, $discord) {
+	// Loop through all the invites and check against the $invites_uses array to see if an invite was used
+	$guild->invites->freshen()->done(function (Collection $invites) use ($discord, $guild, $member, $new_member) {
 		global $db, $invites_uses, $channel_admin;
 
 		foreach ($invites as $invite) {
 			// Only check invites created by our bot and if the uses count has increased since the last time we checked
 			if ($invite->inviter->id == $discord->id && $invite->uses > $invites_uses[$invite->code]) {
 				$invites_uses[$invite->code] = $invite->uses;
-				$inviter = $invite->inviter;
 
+				// Get the name of the inviter from the database
+				$query = $db->query("SELECT m.username FROM invites i INNER JOIN discord_members m ON i.inviter_id = m.id WHERE i.code = '$invite->code';");
+				$inviter_name = $query->fetch_column();
+
+				// Save to the database from which invite the new member joined
 				$db->query("INSERT INTO invites_used (member_id, code) VALUES ('$member->id', '$invite->code')");
 
-				// Get the name of the invter from the database
-				$query = $db->query("SELECT m.username as username FROM invites i INNER JOIN discord_members m ON i.inviter_id = m.id WHERE i.code = '$invite->code';");
-				$inviter_name = $query->fetch_assoc()["username"];
+				// Get the Member object of the inviter, using $inviter_name, so we can send him a message afterwards
+				$guild->members->get("username", $inviter_name)->done(function (Member $inviter) use ($new_member) {
+					$inviter->sendMessage("O utilizador $new_member entrou no servidor através do teu convite.");
+				});
 
-				// Send a message to the invite creator telling them who joined
-				$inviter->sendMessage("O utilizador $member->username#$member->discriminator ($member->id) entrou no servidor através do teu convite.");
-				$channel_admin->sendMessage("O utilizador **$member->username#$member->discriminator** foi convidado por **$inviter_name** através do convite **$invite->code**.");
+				$channel_admin->sendMessage("O utilizador **$new_member** foi convidado por **$inviter_name** através do convite **$invite->code**.");
+
+				break;
 			}
 		}
 	});
@@ -383,6 +396,8 @@ $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
 
 // Any actual message in the guild
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use ($afk, &$activity_counter) {
+	global $db;
+
 	// With this it doesn't matter if it was a bot or not
 	// Get the channel the message was sent in, so we can increment the activity counter for that channel
 	$counter_type = NULL;
@@ -403,13 +418,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 	}
 
 	// If the channel is one of the ones we want to track, then increment the counter
-	if($counter_type) {
-		global $db;
-		$query = $db->query("UPDATE discord_counters SET count = count + 1 WHERE type = '$counter_type' AND day = DATE(NOW());");
-		if(!$query) {
-			print("Error updating counter: " . $db->error . "\n");
-		}
-	}
+	if($counter_type) $query = $db->query("UPDATE discord_counters SET count = count + 1 WHERE type = '$counter_type' AND day = DATE(NOW());");
 
 	// Ignore messages from bots
 	if ($message->author->bot) {
@@ -692,7 +701,7 @@ $discord->listenCommand('convite', function (Interaction $interaction) {
 	// Check if Member already has an invite code for himself
 	$query = $db->query("SELECT code FROM invites WHERE inviter_id = '{$interaction->user->id}';");
 	if($query->num_rows > 0) {
-		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convidar.php?slug=$inviter_slug"), true);
+		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convite.php?slug=$inviter_slug"), true);
 	} else { // Member doesn't have an invite code yet
 		// Create an Invite so we can get the code
 		global $guild;

@@ -5,6 +5,7 @@ class DatabaseConnection {
     private string $username;
     private string $password;
     private string $database;
+    private int    $connection_tries = 0;
 
     public function __construct($hostname, $username, $password, $database) {
         $this->hostname = $hostname;
@@ -15,22 +16,36 @@ class DatabaseConnection {
         $this->connect();
     }
 
-    public function connect(): int|bool {
-        $this->handle = new mysqli($this->hostname, $this->username, $this->password, $this->database);
-        if ($this->handle->connect_errno) {
-            echo "Failed to connect to MySQL: (" . $this->handle->connect_errno . ") " . $this->handle->connect_error;
+    public function connect() {
+        try {
+            $this->handle = new mysqli($this->hostname, $this->username, $this->password, $this->database);
 
-            return false;
+            if ($this->handle->connect_errno) {
+                throw new Exception("Failed to connect to MySQL: (" . $this->handle->connect_errno . ") " . $this->handle->connect_error);
+
+                return false;
+            }
+        } catch (\Throwable $th) {
+            if ($this->connection_tries < 3) {
+                $this->connection_tries++;
+                $this->connect();
+            } else {
+                throw $th;
+
+                return false;
+            }
         }
 
-        return $this->handle;
+        return true;
     }
 
     public function query($query): mysqli_result|bool {
+        // If the connection is dead then reconnect
+        if (!$this->handle->ping()) $this->connect();
+
         $result = $this->handle->query($query);
-        if (!$result) {
-            echo "Query failed: (" . $this->handle->errno . ") " . $this->handle->error;
-        }
+        if (!$result) echo "Query failed: (" . $this->handle->errno . ") " . $this->handle->error;
+
         return $result;
     }
 
