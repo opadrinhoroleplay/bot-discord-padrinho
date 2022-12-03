@@ -8,7 +8,7 @@ class FiveM {
         Get the fill attribute of that element of the rect
         If it's #05f4a7 then it's online, otherwise it's offline
         */
-    static function Status(callable $callback): void {
+    static function Status(callable $callback = NULL): bool {
         $doc = new DOMDocument();
         @$doc->loadHTML(file_get_contents("https://status.cfx.re/"));
         $xpath = new DOMXPath($doc,);
@@ -21,5 +21,7 @@ class FiveM {
             $callback($status);
             self::$last_status = $status;
         }
+
+        return $status;
     }
 }

@@ -31,7 +31,7 @@ class AFKHandler
                     } else {
                         print("Removed AFK status from '$member->username'.\n");
                         $this->db->query("UPDATE discord_afk SET time_unset = now() WHERE member_id = '$member->id';");
-                        $member->removeRole(ROLE_AFK);
+                        $member->removeRole(config->discord->roles->afk);
 
                         return true;
                     }
@@ -43,7 +43,7 @@ class AFKHandler
                     } else {
                         $this->db->query("INSERT INTO discord_afk (member_id) VALUES ('$member->id');");
                     }
-                    $member->addRole(ROLE_AFK);
+                    $member->addRole(config->discord->roles->afk);
 
                     return true;
                 }
@@ -52,7 +52,7 @@ class AFKHandler
                 if ($isAFK) {
                     print("Removed AFK status for '$member->username'.\n");
                     $this->db->query("UPDATE discord_afk SET time_unset = now() WHERE member_id = '$member->id';");
-                    $member->removeRole(ROLE_AFK);
+                    $member->removeRole(config->discord->roles->afk);
 
                     return true;
                 } else {

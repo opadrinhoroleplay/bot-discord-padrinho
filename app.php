@@ -1,41 +1,18 @@
 <?php
 declare(strict_types=1);
 
-include "vendor/autoload.php";
-include "config.php";
-include "Database.class.php";
-include "Utils.php";
-include "language.php";
-include "GameSessions.class.php";
-include "TimeKeeping.php";
-include "Trivia.php";
-include "AFK.php";
-include "BadWords.php";
-include "FiveM.php";
+include("vendor/autoload.php");
+include("config.php");
+include("Database.class.php");
+include("Utils.php");
+include("GameSessions.class.php");
+include("TimeKeeping.php");
+include("Trivia.php");
+include("AFK.php");
+include("BadWords.php");
+include("FiveM.php");
 
 // date_default_timezone_set('Europe/Lisbon');
-
-define("OWNER_ID", 159298655361171456); // VIRUXE
-
-define("GUILD_ID", 519268261372755968);
-
-define("CHANNEL_ADMIN", 641102112981385226);
-define("CHANNEL_MAIN", 960555224056086548);
-
-define("CHANNEL_LOG_AFK", 1020745035169415219);
-define("CHANNEL_LOG_INGAME", 1019768367604838460);
-define("CHANNEL_LOG_VOICE", 1020683057835020358);
-
-define("CHANNEL_VOICE_ADMIN", 1018817931200700436);
-define("CHANNEL_VOICE_DISCUSSION", 960557917784920104);
-define("CHANNEL_VOICE_LOBBY", 1019237971217612840);
-
-define("ROLE_PRESENT", 1046384929803608114);
-define("ROLE_ADMIN", 929172055977508924);
-define("ROLE_AFK", 1020313717805699185);
-define("ROLE_INGAME", 1020385919695585311);
-
-define("SERVER_NAME", $config->server->name);
 
 use Discord\Builders\Components\ActionRow;
 use Discord\Builders\Components\TextInput;
@@ -60,9 +37,11 @@ use Monolog\Logger;
 
 use Discord\Parts\Interactions\Command\Command;
 
+use Utils\Words;
+
 print("Loading Fredo...\n\n");
 
-$db = new DatabaseConnection("p:{$config->database->host}", $config->database->user, $config->database->pass, $config->database->database);
+$db = new DatabaseConnection("p:" . config->database->host, config->database->user, config->database->pass, config->database->database);
 
 $start_time            = new DateTime();
 $guild                 = (object) NULL;
@@ -89,7 +68,7 @@ $logger->pushHandler(new StreamHandler('php://stdout', Monolog\Level::Info));
 
 $discord = new Discord([
 	'logger'         => $logger,
-	'token'          => $config->discord->token,
+	'token'          => config->discord->token,
 	'intents'        => Intents::getDefaultIntents() | Intents::GUILD_MEMBERS | Intents::GUILD_PRESENCES | Intents::GUILD_MESSAGES | Intents::MESSAGE_CONTENT,
 	'loadAllMembers' => false,
 	'storeMessages'  => true
@@ -100,15 +79,16 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 
 	echo "Bot is ready!\n\n";
 
-	$discord->updatePresence($discord->factory(\Discord\Parts\User\Activity::class, [ 'name' => 'vocês seus cabrões!', 'type' => Activity::TYPE_WATCHING ]));
+	$discord->updatePresence($discord->factory(\Discord\Parts\User\Activity::class, ['name' => 'vocês seus cabrões!', 'type' => Activity::TYPE_WATCHING]));
 
-	$guild                 = $discord->guilds->get("id", GUILD_ID);
-	$channel_admin         = $guild->channels->get("id", CHANNEL_ADMIN);
-	$channel_main          = $guild->channels->get("id", CHANNEL_MAIN);
-	$channel_log_traidores = $guild->channels->get("id", "1026667050489352272");
-	$channel_log_afk       = $guild->channels->get("id", CHANNEL_LOG_AFK);
-	$channel_log_ingame    = $guild->channels->get("id", CHANNEL_LOG_INGAME);
-	$channel_log_voice     = $guild->channels->get("id", CHANNEL_LOG_VOICE);
+	$guild                 = $discord->guilds->get("id", config->discord->guild);
+	$channel_admin         = $guild->channels->get("id", config->discord->channels->admin);
+	$channel_main          = $guild->channels->get("id", config->discord->channels->main);
+	$channel_log_afk       = $guild->channels->get("id", config->discord->channels->log->afk);
+	$channel_log_ingame    = $guild->channels->get("id", config->discord->channels->log->ingame);
+	$channel_log_voice     = $guild->channels->get("id", config->discord->channels->log->voice);
+
+	include("Commands.php");
 
 	// Loop through all the invites, get their uses and build the $invites_uses array
 	// TODO: Manage invites being active or not
@@ -116,7 +96,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 	$guild->invites->freshen()->done(function (Collection $invites) use ($discord, $db, $guild, $channel_admin) {
 		foreach ($invites as $invite) {
 			if ($invite->inviter->id != $discord->id) continue; // Only get invites created by our bot
-	
+
 			print("Invite {$invite->code} has {$invite->uses} uses\n");
 			$invites_uses[$invite->code] = $invite->uses;
 
@@ -134,10 +114,10 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 				$query = $db->query("SELECT inviter_id FROM invites WHERE code = '{$invite->code}';");
 				$inviter_id = $query->fetch_column();
 
-				if($inviter_id) {
+				if ($inviter_id) {
 					// Get the invite creator's member object
 					$inviter = $guild->members->get("id", $inviter_id);
-					$inviter->sendMessage("O número de entradas para o teu convite está diferente do que está registado na base de dados. Por favor, contacta o <@" . OWNER_ID . "> para resolver isto.");
+					$inviter->sendMessage("O número de entradas para o teu convite está diferente do que está registado na base de dados. Por favor, contacta o <@{config->discord->users->owner}> para resolver isto.");
 				}
 			}
 		}
@@ -146,7 +126,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 
 	TimeKeeping::hour(function ($hour) use ($channel_main, $channel_admin) {
 		// Check the status of FiveM every hour
-		FiveM::Status(function($status) use ($channel_main) { 
+		FiveM::Status(function ($status) use ($channel_main) {
 			$channel_main->sendMessage($status ? "O FiveM está de volta! :partying_face:" : "O FiveM ficou offline! :sob:");
 		});
 
@@ -224,8 +204,8 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 				break;
 			case 8:
 				global $guild;
-				// Remove ROLE_PRESENT from everyone that has the ROLE_ADMIN role
-				foreach ($guild->roles->get("id", ROLE_ADMIN)->members as $member) $member->removeRole(ROLE_PRESENT);
+				// Remove config->discord->roles->present from everyone that has the config->discord->roles->admin role
+				foreach ($guild->roles->get("id", config->discord->roles->admin)->members as $member) $member->removeRole(config->discord->roles->present);
 
 				$channel_main->sendMessage("Bom dia pessoal! :partying_face:");
 				$channel_admin->sendMessage("<@&929172055977508924> São agora 8 da manhã seus cabrões. Toca a acordar!\nQuem é que vai marcar presença hoje?")->done(function (Message $message) {
@@ -237,109 +217,24 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 					$rollcall_message_id = $message->id;
 				});
 				break;
-			default:
-				// Send a random joke
-				$chance = rand(1, 100);
+			default: // Send a random joke
+				if (rand(1, 100) > 10) break;
 
-				if ($chance > 10) break;
+				$content = file_get_contents("https://evilinsult.com/generate_insult.php?lang=pt&type=json");
+				if ($content) { // Check if the request was successful
+					$result = json_decode($content);
 
-				$ch = curl_init();
+					if ($result) { // Check if the JSON was decoded successfully
+						// Convert html entities in $result->comment to utf-8
+						$result->comment = html_entity_decode($result->comment, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-				curl_setopt($ch, CURLOPT_URL, "https://evilinsult.com/generate_insult.php?lang=pt&type=json");
-				curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-				curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+						$channel_main->sendMessage("**$result->insult** - *$result->comment*")->done(function (Message $message) { $message->react("😂"); });
+					} else print("Failed to decode JSON.");
+				} else print("Failed to get joke from evilinsult.com");
 
-				$result = curl_exec($ch);
-				$result = json_decode($result);
-
-				// Convert html entities in $result->comment to utf-8
-				$result->comment = html_entity_decode($result->comment, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-				curl_close($ch);
-
-				$channel_main->sendMessage("**$result->insult** - *$result->comment*")->done(function (Message $message) {
-					$message->react("😂");
-				});
-
-				// $channel_admin->sendMessage("São agora " . date("H:i"));
 				break;
 		}
 	});
-
-	/* 	function GetRandomPortugueseJoke() {
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, "https://api.chucknorris.io/jokes/random");
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		$output = curl_exec($ch);
-		curl_close($ch);
-
-		$json = json_decode($output, true);
-
-		return $json["value"];
-	}
-
-	function GetRandomJoke() {
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, "https://official-joke-api.appspot.com/random_joke");
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		$output = curl_exec($ch);
-		curl_close($ch);
-
-		$joke = json_decode($output);
-
-		return $joke->setup . PHP_EOL . $joke->punchline;
-	} */
-
-
-	// include "registerCommands.php";
-	/* $discord->application->commands->save(new Command($discord, [
-		'name' => 'afk', 
-		'description' => 'Define o teu estado de AFK. (Caso alguém te mencione, o bot irá responder com a tua razão de AFK.)',
-		"options" => [
-			[
-				"type"        => 3,
-				"name"        => "razao",
-				"description" => "Razão pela qual estás AFK.",
-				"required"    => false
-			]
-		]
-	])); */
-	/* foreach($guild->commands as $command) {
-		if($command->type != 3) continue;
-
-		print("Deleting $command->name.\n");
-		$guild->commands->delete($command);
-	} */
-
-	// $discord->application->commands->delete("1046060312647979179");
-	// $guild->commands->delete("1020083011934507141");
-
-	/* $discord->application->commands->save(new Command($discord, [
-		"custom_id" => "shutup",
-		"name" => "Mandar calar",
-		"type" => 3,
-	])); */
-
-	/* $discord->application->commands->save(
-		new Command($discord, [
-			'name' => 'convidar',
-			'description' => 'Cria um link de convite poderes convidar os teus amigos.',
-			"options" => [
-				[
-					"type"        => 3,
-					"name"        => "utilizador",
-					"description" => "Nome e Discriminador do Utilizador. (Exemplo: Utilizador#1234)",
-					"required"    => true
-				]
-			]
-		])
-	); */
-
-	/* $discord->application->commands->save(new Command($discord, [
-		"name" => "convite",
-		"description" => "Obtém o teu código de convite, para que os teus amigos possam entrar no Servidor.",
-	])); */
 });
 
 // When a member joins the server
@@ -347,10 +242,12 @@ $discord->on(Event::GUILD_MEMBER_ADD, function (Member $member, Discord $discord
 	global $guild, $channel_main;
 
 	$new_member = "$member->username#$member->discriminator";
-	
+
 	print("[JOIN] Member $new_member joined the server.\n");
 
-	$channel_main->sendMessage("Bem-vindo ao servidor, $member!")->done(function (Message $message) { $message->react("👋"); });
+	$channel_main->sendMessage("Bem-vindo ao servidor, $member!")->done(function (Message $message) {
+		$message->react("👋");
+	});
 
 	// Loop through all the invites and check against the $invites_uses array to see if an invite was used
 	$guild->invites->freshen()->done(function (Collection $invites) use ($discord, $guild, $member, $new_member) {
@@ -403,26 +300,25 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 	$counter_type = NULL;
 
 	switch ($message->channel_id) {
-		case 1019389839457652776: // #desenvolvimento
+		case config->discord->channels->desenvolvimento:
 			$counter_type = "dev_messages";
 			break;
-		case CHANNEL_ADMIN:
+		case config->discord->channels->admin:
 			$counter_type = "admin_messages";
 			break;
-		case 1038814705197781044: // #clickup
+		case config->discord->channels->clickup:
 			$counter_type = "clickup";
 			break;
-		case 1038958502405754922: // #github
+		case config->discord->channels->github:
 			$counter_type = "github";
 			break;
 	}
 
 	// If the channel is one of the ones we want to track, then increment the counter
-	if($counter_type) $query = $db->query("UPDATE discord_counters SET count = count + 1 WHERE type = '$counter_type' AND day = DATE(NOW());");
+	if ($counter_type) $db->query("UPDATE discord_counters SET count = count + 1 WHERE type = '$counter_type' AND day = DATE(NOW());");
 
 	// Ignore messages from bots
 	if ($message->author->bot) {
-		
 	} else { // If the message was not sent by a bot, then it was sent by a human
 		// Check for bad words
 		if (BadWords::Scan($message)) {
@@ -441,7 +337,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 			foreach ($matches[1] as $id) {
 				$member = $message->guild->members->get("id", $id);
 
-				if ($member == NULL || !$member->roles->has(ROLE_AFK)) continue; // If the member is not in the server or is not AFK, then skip
+				if ($member == NULL || !$member->roles->has(config->discord->roles->afk)) continue; // If the member is not in the server or is not AFK, then skip
 
 				$is_afk = $afk->get($member); // If true then member didn't set a reason, if string then member set a reason
 
@@ -467,9 +363,9 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 
 	// Check if the reaction was on a greeting message from the bot and if the user reacted with the 👋 emoji, then send a message to the channel
 	// ! Fuck this shit. Doesn't work. I'm not going to waste more time on this.
-	if($reaction->emoji->name == "👋" && $reaction->channel->id == CHANNEL_MAIN && $reaction->user->bot) {
+	if ($reaction->emoji->name == "👋" && $reaction->channel->id == config->discord->channels->main && $reaction->user->bot) {
 		$mentioned_member = $reaction->message->mentions->first();
-		
+
 		$reaction->channel->sendMessage("{$reaction->user} dá-te as boas-vindas $mentioned_member! :wave:");
 	}
 
@@ -518,12 +414,12 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 
 			$channel_admin->sendMessage(sprintf($replies[rand(0, count($replies) - 1)] . ". :handshake:", $reaction->member));
 
-			$reaction->member->addRole(ROLE_PRESENT);
+			$reaction->member->addRole(config->discord->roles->present);
 		} elseif ($reaction->emoji->name == "👎") { // If the user reacted with a thumbs down
 			$channel_admin->sendMessage("Tranquilo {$reaction->member}, vemos-te amanhã então. :wave:");
 
 			// Remove the present role if the user has it
-			if ($reaction->member->roles->has(ROLE_PRESENT)) $reaction->member->removeRole(ROLE_PRESENT);
+			if ($reaction->member->roles->has(config->discord->roles->present)) $reaction->member->removeRole(config->discord->roles->present);
 		} else { // If the reaction is not 👍 or 👎
 			$reaction->delete()->done(function () use ($channel_admin, $reaction) {
 				$channel_admin->sendMessage("$reaction->member para quieto fdp. Estás-te a armar quê? Push, queres é festa.");
@@ -547,7 +443,7 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 					$nuance = $nuances[rand(0, count($nuances) - 1)];
 
 					$message = $interaction->data->resolved->messages->first();
-					$insult = getInsult();
+					$insult = Words\getInsult();
 					$message->reply("Tu cala-te $insult do caralho, antes que $nuance!");
 
 					$interaction->acknowledgeWithResponse();
@@ -662,7 +558,7 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 		// $game_sessions->open($member, $game);
 
 		// Check if they are playing on our server or not
-		if ($game->name == SERVER_NAME || $game?->state == SERVER_NAME) { // Playing on our server
+		if ($game->name == config->server->name || $game?->state == config->server->name) { // Playing on our server
 			SetMemberIngame($member, true);
 		} else { // Not playing on our server
 			$traidorfdp = GameSessions::IsRoleplayServer([$game->name, $game?->state]);
@@ -696,16 +592,16 @@ $discord->listenCommand('convite', function (Interaction $interaction) {
 	global $db;
 
 	$username = $interaction->user->username;
-	$inviter_slug = slugify($username);
+	$inviter_slug = Words\slugify($username);
 
 	// Check if Member already has an invite code for himself
 	$query = $db->query("SELECT code FROM invites WHERE inviter_id = '{$interaction->user->id}';");
-	if($query->num_rows > 0) {
+	if ($query->num_rows > 0) {
 		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: http://opadrinhoroleplay.pt/convite.php?slug=$inviter_slug"), true);
 	} else { // Member doesn't have an invite code yet
 		// Create an Invite so we can get the code
 		global $guild;
-		$guild->channels->get("id", CHANNEL_MAIN)->createInvite([
+		$guild->channels->get("id", config->discord->channels->main)->createInvite([
 			"max_age"   => 0,
 			"max_uses"  => 0,
 			"temporary" => false,
@@ -713,17 +609,17 @@ $discord->listenCommand('convite', function (Interaction $interaction) {
 		], "Codigo de Convite para '{$username}'")->done(function (Invite $invite) use ($interaction, $db, $username, $inviter_slug) {
 			// Check in the 'discord_members' table if the member already exists. If not, create a new entry
 			$query = $db->query("SELECT username FROM discord_members WHERE id = {$interaction->user->id}");
-			if($query->num_rows == 0) $db->query("INSERT INTO discord_members (id, username) VALUES ({$interaction->user->id}, '{$username}')");
+			if ($query->num_rows == 0) $db->query("INSERT INTO discord_members (id, username) VALUES ({$interaction->user->id}, '{$username}')");
 
 			// Get the code and insert it into the database
 			$invite_insert = $db->query("INSERT INTO invites (code, inviter_id, inviter_slug) VALUES ('$invite->code', '{$interaction->user->id}', '$inviter_slug')");
-			if($invite_insert === TRUE) {
+			if ($invite_insert === TRUE) {
 				global $channel_admin;
 				$invite_url = "http://opadrinhoroleplay.pt/convidar.php?slug=$inviter_slug";
 				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Olá $username, este é o teu link de convite: $invite_url"), true);
 				$channel_admin->sendMessage("O utilizador **$username** criou um convite. (Slug: '$inviter_slug')");
 			} else {
-				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Ocorreu um erro ao gerar o teu código de convite! Fala com o <@" . OWNER_ID . ">"), true);
+				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Ocorreu um erro ao gerar o teu código de convite! Fala com o <@{config->discord->users->owner}>"), true);
 			}
 			return;
 		});
@@ -779,13 +675,13 @@ $discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $newState, Di
 	$channel = $newState->channel;
 
 	// Don't let the player move to the lobby channel, unless he's an admin
-	if (!IsMemberAdmin($member) && IsMemberIngame($member) && $newState->channel_id == CHANNEL_VOICE_DISCUSSION) {
-		$member->moveMember($oldState->channel?->id ?? CHANNEL_VOICE_LOBBY, "Tentou voltar para a Discussão Geral.");
+	if (!IsMemberAdmin($member) && IsMemberIngame($member) && $newState->channel_id == config->discord->channels->voice->discussion) {
+		$member->moveMember($oldState->channel?->id ?? config->discord->channels->voice->lobby, "Tentou voltar para a Discussão Geral.");
 		$member->sendMessage("Não podes voltar para Discussão Geral enquanto estiveres a jogar.");
 		return;
 	}
 
-	if ($channel?->id == CHANNEL_VOICE_ADMIN && !$oldState?->channel) $channel_admin->sendMessage("$member->username entrou no $channel.");
+	if ($channel?->id == config->discord->channels->voice->admin && !$oldState?->channel) $channel_admin->sendMessage("$member->username entrou no $channel.");
 
 	$channel_log_voice->sendMessage($member->username . ($channel ?  " entrou no canal $channel." : " saiu do canal de voz."));
 });
@@ -821,7 +717,7 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 		$member_channel = $interaction->guild->channels->get("id", $member_channel);
 
 		// Set a new name if one was provided
-		if ($options["nome"]) $member_channel->name = slugify($options["nome"]->value);
+		if ($options["nome"]) $member_channel->name = Words\slugify($options["nome"]->value);
 
 		// Delete all members, minus owner
 		foreach ($member_channel->overwrites as $part) {
@@ -843,7 +739,7 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 		// Create the Channel Part
 		$new_channel = $interaction->guild->channels->create([
 			"parent_id" => 1030787112628400198, // 'Voz' Category
-			"name" => $options["nome"] ? slugify($options["nome"]->value) : generateWhatThreeWords(),
+			"name" => $options["nome"] ? Words\slugify($options["nome"]->value) : Words\generateWhatThreeWords(),
 			"type" => Channel::TYPE_GUILD_VOICE,
 			"bitrate" => 96000
 		]);
@@ -876,11 +772,8 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 $discord->listenCommand('trivia', function (Interaction $interaction) {
 	global $trivia;
 
-	$member  = $interaction->member;
-	$channel = $interaction->channel;
-
 	$interaction->respondWithMessage(MessageBuilder::new()->setContent("Vamos lá então a um jogo de **Trívia** sobre _Roleplay_! Quero ver quem é que percebe desta merda."));
-	$trivia = new Trivia($channel);
+	$trivia = new Trivia($interaction->channel);
 });
 
 // Listen to the command 'fivem' to check the status
@@ -890,34 +783,20 @@ $discord->listenCommand('fivem', function (Interaction $interaction) {
 
 $discord->run();
 
-/*
-	For some reason even a persistent connection goes away after some time.
-	So I figured I would put a ping on a loop instead of pinging with every database query.
-*/
-/* Loop::addPeriodicTimer(.1, function () {
-	global $db;
-	
-	if($db->ping()) print("Database Connection has gone away. Reconnecting...\n");
-    $memory = memory_get_usage() / 1024;
-    $formatted = number_format($memory, 3).'K';
-    echo "Current memory usage: {$formatted}\n";
-}); */
-
 function SetMemberIngame(Member $member, bool $toggle): bool
 {
-	$is_ingame      = IsMemberIngame($member);
-	// print($is_ingame . " " . $toggle);
+	$is_ingame = IsMemberIngame($member);
 
 	if ($is_ingame === $toggle) return false;
 
 	global $channel_admin;
 
 	if ($toggle) {
-		$member->addRole(ROLE_INGAME, "Entrou no Servidor."); // Set the AFK role
-		if ($member->getVoiceChannel() && !IsMemberAdmin($member)) $member->moveMember(CHANNEL_VOICE_LOBBY, "Entrou no Servidor."); // Move member to the in-game channel when in-game
+		$member->addRole(config->discord->roles->ingame, "Entrou no Servidor."); // Set the AFK role
+		if ($member->getVoiceChannel() && !IsMemberAdmin($member)) $member->moveMember(config->discord->channels->voice->lobby, "Entrou no Servidor."); // Move member to the in-game channel when in-game
 	} else {
-		$member->removeRole(ROLE_INGAME, "Saiu do Servidor.");
-		if ($member->getVoiceChannel() && !IsMemberAdmin($member)) $member->moveMember(CHANNEL_VOICE_DISCUSSION, "Saiu do Servidor."); // Move member to the voice lobby if not in-game anymore
+		$member->removeRole(config->discord->roles->ingame, "Saiu do Servidor.");
+		if ($member->getVoiceChannel() && !IsMemberAdmin($member)) $member->moveMember(config->discord->channels->voice->discussion, "Saiu do Servidor."); // Move member to the voice lobby if not in-game anymore
 	}
 
 	$channel_admin->sendMessage($member->username . ($toggle ? " entrou no servidor." : " saiu do servidor."));
@@ -927,12 +806,12 @@ function SetMemberIngame(Member $member, bool $toggle): bool
 
 function IsMemberAdmin(Member $member): bool
 {
-	return $member->roles->get("id", ROLE_ADMIN) ? true : false;
+	return $member->roles->get("id", config->discord->roles->admin) ? true : false;
 }
 
 function IsMemberIngame(Member $member): bool
 {
-	return $member->roles->get("id", ROLE_INGAME) ? true : false;
+	return $member->roles->get("id", config->discord->roles->ingame) ? true : false;
 }
 
 function GetMemberVoiceChannel(Member $member): string|null

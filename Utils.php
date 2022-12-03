@@ -37,6 +37,7 @@ namespace Utils\Words {
 		// lowercase
 		$text = strtolower($text);
 
+		// If empty, return a random insult
 		if (empty($text)) return slugify(getInsult());
 
 		return $text;
@@ -47,9 +48,8 @@ namespace Utils\Words {
 		$words = file_get_contents("words.txt");
 		$words = explode("\n", $words);
 
-		do {
-			$word = $words[rand(0, count($words) - 1)];
-		} while (str_contains($word, "-") || strlen($word) >= 8); // Portuguese words can have dashes, so we'll just avoid them in this scenario
+		do $word = $words[rand(0, count($words) - 1)];
+		while (str_contains($word, "-") || strlen($word) >= 8); // Portuguese words can have dashes, so we'll just avoid them in this scenario
 
 		return $lowercase ? strtolower($word) : $word;
 	}
