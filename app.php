@@ -778,7 +778,9 @@ $discord->listenCommand('trivia', function (Interaction $interaction) {
 
 // Listen to the command 'fivem' to check the status
 $discord->listenCommand('fivem', function (Interaction $interaction) {
-	$interaction->respondWithMessage(MessageBuilder::new()->setContent("**Estado actual do FiveM**: " . (FiveM::Status() ? 'Online' : 'Offline')));
+	$fivem_status = FiveM::Status();
+
+	if($fivem_status != null) $interaction->respondWithMessage(MessageBuilder::new()->setContent("**Estado actual do FiveM**: " . (FiveM::Status() ? 'Online' : 'Offline')));
 });
 
 $discord->run();

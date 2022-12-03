@@ -16,7 +16,10 @@ class FiveM {
         $rect  = $xpath->query("//svg/rect[last()]")[0]; // Other elements are generated during runtime so this seemed the best bet
         $color = $rect->getAttribute("fill");
 
-        if(!$color) return null; // If the color is empty, then the website is probably down
+        if(!$color) {
+            print("There was an error getting the status from https://status.cfx.re/");
+            return null; // If the color is empty, then the website is probably down
+        }
 
         $curr_status = $color === "#05f4a7" ? true : false;
 
