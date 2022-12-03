@@ -4,7 +4,7 @@ use Discord\Parts\Channel\Message;
 
 class BadWords
 {
-    private $words = [
+    static private $words = [
         "ban"     => [CHANNEL_MAIN],
         "nopixel" => NULL,
         "leaked"  => NULL,
