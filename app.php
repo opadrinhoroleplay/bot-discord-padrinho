@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 include "vendor/autoload.php";
 include "config.php";
+include "Database.class.php";
 include "Utils.php";
 include "language.php";
 include "GameSessions.class.php";
@@ -62,7 +63,7 @@ use Discord\Parts\Interactions\Command\Command;
 
 print("Starting Padrinho\n\n");
 
-$db = new mysqli("p:{$config->database->host}", $config->database->user, $config->database->pass, $config->database->database);
+$db = new DatabaseConnection("p:{$config->database->host}", $config->database->user, $config->database->pass, $config->database->database);
 
 $start_time            = new DateTime();
 $guild                 = (object) NULL;
@@ -84,8 +85,6 @@ $activity_counter = [
 	"admin_messages" => 0,
 ];
 
-// $game_sessions = new GameSessions($db);
-
 $logger = new Logger('DiscordPHP');
 $logger->pushHandler(new StreamHandler('php://stdout', Monolog\Level::Info));
 
@@ -97,7 +96,7 @@ $discord = new Discord([
 	'storeMessages'  => true
 ]);
 
-$discord->on('ready', function (Discord $discord) use ($start_time, &$activity_counter) {
+$discord->on('ready', function (Discord $discord) {
 	global $guild, $channel_main, $channel_admin, $channel_log_traidores, $channel_log_ingame, $channel_log_voice, $channel_log_afk;
 
 	echo "Bot is ready!", PHP_EOL;
