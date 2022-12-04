@@ -1,5 +1,9 @@
 <?php
+
 declare(strict_types=1);
+
+// Get environment debug setting
+define("DEBUG", getenv('DEBUG') ?: false);
 
 include("vendor/autoload.php");
 include("config.php");
@@ -90,27 +94,30 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 
 	include("Commands.php");
 
-	// Get the bot version from the amount of commits on GitHub
-	$ch = curl_init();
-	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Don't verify SSL certificate
-	curl_setopt($ch, CURLOPT_URL, "https://api.github.com/repos/VIRUXE/bot-discord-padrinho/commits");
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-	curl_setopt($ch, CURLOPT_HTTPHEADER, [
-		"Accept: application/vnd.github.v3+json",
-		"User-Agent: VIRUXE"
-	]);
+	// Send startup message to the admin channel, with the bot's version. Only if the bot is not in debug mode
+	if (!DEBUG) {
+		// Get the bot version from the amount of commits on GitHub
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Don't verify SSL certificate
+		curl_setopt($ch, CURLOPT_URL, "https://api.github.com/repos/VIRUXE/bot-discord-padrinho/commits");
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			"Accept: application/vnd.github.v3+json",
+			"User-Agent: VIRUXE"
+		]);
 
-	$github = curl_exec($ch);
-	if (curl_errno($ch)) echo 'Error:' . curl_error($ch);
-	curl_close($ch);
+		$github = curl_exec($ch);
+		if (curl_errno($ch)) echo 'Error:' . curl_error($ch);
+		curl_close($ch);
 
-	// If the request was successful, get the amount of commits
-	if($github) {
-		$commits = json_decode($github, true);
-		$version = sizeof($commits);
-		$last_commit_message = $commits[0]["commit"]["message"];
+		// If the request was successful, get the amount of commits
+		if ($github) {
+			$commits = json_decode($github, true);
+			$version = sizeof($commits);
+			$last_commit_message = $commits[0]["commit"]["message"];
 
-		$channel_admin->sendMessage("Iniciado com sucesso! Versão: $version ('$last_commit_message')");
+			$channel_admin->sendMessage("Iniciado com sucesso! **Versão: $version** `$last_commit_message`");
+		}
 	}
 
 	// Loop through all the invites, get their uses and build the $invites_uses array
@@ -251,7 +258,9 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 						// Convert html entities in $result->comment to utf-8
 						$result->comment = html_entity_decode($result->comment, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-						$channel_main->sendMessage("**$result->insult** - *$result->comment*")->done(function (Message $message) { $message->react("😂"); });
+						$channel_main->sendMessage("**$result->insult** - *$result->comment*")->done(function (Message $message) {
+							$message->react("😂");
+						});
 					} else print("Failed to decode JSON.");
 				} else print("Failed to get joke from evilinsult.com");
 
@@ -803,7 +812,7 @@ $discord->listenCommand('trivia', function (Interaction $interaction) {
 $discord->listenCommand('fivem', function (Interaction $interaction) {
 	$fivem_status = FiveM::Status();
 
-	if($fivem_status != null) $interaction->respondWithMessage(MessageBuilder::new()->setContent("**Estado actual do FiveM**: " . (FiveM::Status() ? 'Online' : 'Offline')));
+	if ($fivem_status != null) $interaction->respondWithMessage(MessageBuilder::new()->setContent("**Estado actual do FiveM**: " . (FiveM::Status() ? 'Online' : 'Offline')));
 });
 
 $discord->run();
