@@ -90,6 +90,29 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 
 	include("Commands.php");
 
+	// Get the bot version from the amount of commits on GitHub
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Don't verify SSL certificate
+	curl_setopt($ch, CURLOPT_URL, "https://api.github.com/repos/VIRUXE/bot-discord-padrinho/commits");
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	curl_setopt($ch, CURLOPT_HTTPHEADER, [
+		"Accept: application/vnd.github.v3+json",
+		"User-Agent: VIRUXE"
+	]);
+
+	$github = curl_exec($ch);
+	if (curl_errno($ch)) echo 'Error:' . curl_error($ch);
+	curl_close($ch);
+
+	// If the request was successful, get the amount of commits
+	if($github) {
+		$commits = json_decode($github, true);
+		$version = sizeof($commits);
+		$last_commit_message = $commits[0]["commit"]["message"];
+
+		$channel_admin->sendMessage("Iniciado com sucesso! Versão: $version ('$last_commit_message')");
+	}
+
 	// Loop through all the invites, get their uses and build the $invites_uses array
 	// TODO: Manage invites being active or not
 	print("Checking invites...\n");

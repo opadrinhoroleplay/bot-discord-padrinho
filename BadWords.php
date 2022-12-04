@@ -4,8 +4,10 @@ use Discord\Parts\Channel\Message;
 
 class BadWords
 {
+    // static private $channel_main = config->discord->channels->main; // 960555224056086548
+
     static private $words = [
-        "ban"     => [CHANNEL_MAIN],
+        "ban"     => ["960555224056086548"],
         "nopixel" => NULL,
         "leaked"  => NULL,
         "leak"    => NULL,
@@ -18,7 +20,7 @@ class BadWords
     public static function Scan(Message $message): bool
     {
         if($message->channel->is_private) return false; // Only scan messages if they are not from the bot's private channel
-        if($message->member->roles->has(ROLE_ADMIN)) return false; // Don't scan messages from admins
+        if($message->member->roles->has(config->discord->roles->admin)) return false; // Don't scan messages from admins
 
         $found = false;
         
