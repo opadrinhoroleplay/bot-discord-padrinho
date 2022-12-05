@@ -1,11 +1,11 @@
 <?php
 class DatabaseConnection {
-    public  mysqli $handle; // Keep the handle public so we can access it from outside the class, for example, to use mysqli_real_escape_string()
+    public  mysqli $connection; // Keep the connection public so we can access it from outside the class, for example, to use mysqli_real_escape_string()
+    private int    $connection_tries = 0;
     private string $hostname;
     private string $username;
     private string $password;
     private string $database;
-    private int    $connection_tries = 0;
 
     public function __construct($hostname, $username, $password, $database) {
         $this->hostname = $hostname;
@@ -18,38 +18,28 @@ class DatabaseConnection {
 
     public function connect() {
         try {
-            $this->handle = new mysqli($this->hostname, $this->username, $this->password, $this->database);
-
-            if ($this->handle->connect_errno) {
-                throw new Exception("Failed to connect to MySQL: (" . $this->handle->connect_errno . ") " . $this->handle->connect_error);
-
-                return false;
-            }
-        } catch (\Throwable $th) {
+            print("[Database] Connecting to '$this->hostname'... ");
+            $this->connection = new mysqli($this->hostname, $this->username, $this->password, $this->database);
+        } catch (Exception $e) {
             if ($this->connection_tries < 3) {
+                print("Failed: $e->getMessage()\n");
                 $this->connection_tries++;
                 $this->connect();
             } else {
-                throw $th;
-
-                return false;
+                die("Failed. Exiting.");
             }
         }
 
-        return true;
+        print("Connected.\n\n");
     }
 
     public function query($query): mysqli_result|bool {
         // If the connection is dead then reconnect
-        if (!$this->handle->ping()) $this->connect();
+        if (!$this->connection->ping()) $this->connect();
 
-        $result = $this->handle->query($query);
-        if (!$result) echo "Query failed: (" . $this->handle->errno . ") " . $this->handle->error;
+        $result = $this->connection->query($query);
+        if (!$result) echo "[Database] Query failed: ({$this->connection->errno} {$this->connection->error})\n";
 
         return $result;
-    }
-
-    public function close() {
-        $this->handle->close();
     }
 }
