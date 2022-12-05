@@ -420,13 +420,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 			$channel_admin->sendMessage("Eliminei uma mensagem de '{$message->author->username}' no '{$message->channel->name}' por utilizar uma palavra banida: - `$message->content`");
 		}
 
-		// Check if member already exists in database and if not, add him
-		if (!\Member::Exists($message->member)) {
-			\Member::Create($message->member);
-		} else { // If member already exists, update his last activity
-			// Update 'last_active' field in 'discord_members' table if member already exists
-			$db->query("UPDATE discord_members SET last_active = NOW() WHERE id = '{$message->author->id}';");
-		}
+		\Member::SetLastOnline($message->member);
 
 		// Set a Member to not being AFK if they send a message
 		AFK::set($message->member, false);
@@ -643,7 +637,7 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 
 				// if ($member->getVoiceChannel()) $member->moveMember(NULL, "Became AFK."); // Remove member from the voice channels if they become AFK
 			} elseif ($curr_status == "offline") { // User is now offline (or invisible) so update the last seen time in the database
-				$GLOBALS["db"]->query("UPDATE discord_members SET last_online = NOW() WHERE id = '{$member->id}';");
+				\Member::SetLastOnline($member);
 			}
 
 			// print("'$member->username' updated status: '$prev_status' -> '$curr_status'\n");

@@ -14,4 +14,19 @@ class Member {
 
         return $query;
     }
+
+    static function SetLastOnline(DiscordMember $member) {
+        $member_exists = self::Exists($member);
+
+        // Create member if it doesn't exist
+        if(!$member_exists) $member_created = self::Create($member);
+
+        // If the member exists or was created, update the last online time
+        if($member_exists || $member_created) {
+            $query = $GLOBALS["db"]->query("UPDATE discord_members SET last_online = NOW() WHERE id = '{$member->id}';");
+            if($query) print("[MEMBER] Updated last online for {$member->username} ({$member->id})\n"); else print("[MEMBER] Failed to update last online for {$member->username} ({$member->id})\n");
+
+            return $query;
+        }
+    }
 }

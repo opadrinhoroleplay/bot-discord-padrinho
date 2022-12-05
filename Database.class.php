@@ -34,7 +34,12 @@ class DatabaseConnection {
     }
 
     public function query($query): mysqli_result|bool {
-        if(DEBUG) print("[Database] Query: $query\n");
+        if(DEBUG) {
+            print("[Database] Query: $query\n");
+            // Print a stack trace
+            $trace = debug_backtrace();
+            print("[Database] Called from: {$trace[1]["file"]}:{$trace[1]["line"]}\n");
+        }
 
         // If the connection is dead then reconnect
         try {
