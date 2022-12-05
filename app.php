@@ -662,7 +662,7 @@ $discord->listenCommand('uptime', function (Interaction $interaction) use ($star
 	$uptime = $start_time->diff(new DateTime());
 	$uptime_string = $uptime->format("%a dias, %h horas, %i minutos e %s segundos");
 
-	$interaction->respondWithMessage(MessageBuilder::new()->setContent("Estou online a $uptime_string"), true);
+	$interaction->respondWithMessage(MessageBuilder::new()->setContent("Estou online a $uptime_string"), false);
 });
 
 $discord->listenCommand('afk', function (Interaction $interaction) {
