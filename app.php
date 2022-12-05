@@ -57,8 +57,7 @@ $channel_log_voice     = (object) NULL;
 $channel_log_afk       = (object) NULL;
 $rollcall_message_id   = null;
 $trivia                = null;
-$afk                   = new AFKHandler($db);
-$invites_uses          = [];
+$invites_uses          = []; // Array of invites and their uses
 
 $activity_counter = [
 	"dev_messages"   => 0,
@@ -127,7 +126,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 		foreach ($invites as $invite) {
 			if ($invite->inviter->id != $discord->id) continue; // Only get invites created by our bot
 
-			print("Invite {$invite->code} has {$invite->uses} uses\n");
+			print("Invite '{$invite->code}' has '{$invite->uses}' uses\n");
 			$invites_uses[$invite->code] = $invite->uses;
 
 			// Check invite uses against the database, in the 'invites_used' table and alert if it's different
@@ -137,7 +136,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 			// If the invite was used more times than the database says, it means the bot was offline when it was used
 			// Send a message to the invite creator to let them know and get in contact with VIRUXE
 			if ($db_invite_uses < $invite->uses) {
-				print("Invite {$invite->code} has {$invite->uses} uses, but the database says it has {$db_invite_uses} uses\n");
+				print("Invite {'$invite->code}' has '{$invite->uses}' uses, but the database says it has {$db_invite_uses} uses\n");
 				$channel_admin->sendMessage("O número de convites usados para o convite **{$invite->code}** está diferente do que está na base de dados! ({$invite->uses} vs {$db_invite_uses})");
 
 				// Get the invite creator's member id from database using their invite code
@@ -156,8 +155,8 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 
 	TimeKeeping::hour(function ($hour) use ($channel_main, $channel_admin) {
 		// Check the status of FiveM every hour
-		FiveM::Status(function ($status) use ($channel_main) {
-			$channel_main->sendMessage($status ? "O FiveM está de volta! :partying_face:" : "O FiveM ficou offline! :sob:");
+		FiveM::Status(function ($online) use ($channel_main) {
+			$channel_main->sendMessage($online ? "O FiveM está de volta! :partying_face:" : "O FiveM ficou offline! :sob:");
 		});
 
 		switch ($hour) {
@@ -277,9 +276,7 @@ $discord->on(Event::GUILD_MEMBER_ADD, function (Member $member, Discord $discord
 
 	print("[JOIN] Member $new_member joined the server.\n");
 
-	$channel_main->sendMessage("Bem-vindo ao servidor, $member!")->done(function (Message $message) {
-		$message->react("👋");
-	});
+	$channel_main->sendMessage("Bem-vindo ao servidor, $member!")->done(function (Message $message) { $message->react("👋"); });
 
 	// Loop through all the invites and check against the $invites_uses array to see if an invite was used
 	$guild->invites->freshen()->done(function (Collection $invites) use ($discord, $guild, $member, $new_member) {
@@ -288,7 +285,7 @@ $discord->on(Event::GUILD_MEMBER_ADD, function (Member $member, Discord $discord
 		foreach ($invites as $invite) {
 			// Only check invites created by our bot and if the uses count has increased since the last time we checked
 			if ($invite->inviter->id == $discord->id && $invite->uses > $invites_uses[$invite->code]) {
-				$invites_uses[$invite->code] = $invite->uses;
+				$invites_uses[$invite->code] = $invite->uses; // Update the uses count in the array
 
 				// Get the name of the inviter from the database
 				$query = $db->query("SELECT m.username FROM invites i INNER JOIN discord_members m ON i.inviter_id = m.id WHERE i.code = '$invite->code';");
@@ -312,15 +309,13 @@ $discord->on(Event::GUILD_MEMBER_ADD, function (Member $member, Discord $discord
 
 // Creating Invites
 $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
-	/* global $channel_admin;
+	global $channel_admin;
 
-	// Delete invites that are not created by our bot and VIRUXE
-	if ($invite->inviter->id != $discord->id && $invite->inviter->id != OWNER_ID) {
+	// Delete invites that are not created by our bot or VIRUXE
+	if ($invite->inviter->id != $discord->id && $invite->inviter->id != config->discord->users->viruxe) {
 		$channel_admin->sendMessage("O utilizador tentou <@{$invite->inviter->id}> criar um convite ($invite->code).");
 		$invite->guild->invites->delete($invite);
-	} else {
-		$channel_admin->sendMessage("<@{$invite->inviter->id}> criou um convite ($invite->code) para o servidor.");
-	} */
+	}
 });
 
 // Any actual message in the guild
@@ -658,6 +653,7 @@ $discord->listenCommand('convite', function (Interaction $interaction) {
 	}
 });
 
+// Check the bot's uptime
 $discord->listenCommand('uptime', function (Interaction $interaction) use ($start_time) {
 	$uptime = $start_time->diff(new DateTime());
 	$uptime_string = $uptime->format("%a dias, %h horas, %i minutos e %s segundos");
@@ -665,6 +661,10 @@ $discord->listenCommand('uptime', function (Interaction $interaction) use ($star
 	$interaction->respondWithMessage(MessageBuilder::new()->setContent("Estou online a $uptime_string"), false);
 });
 
+/* 
+	Set's the member's AFK status. Useful for other when other member's tag them in a message.
+	The bot will check if the member is AFK and if so, it will send a message to the channel where the member was tagged. To remind the other member that the tagged member is AFK.
+ */
 $discord->listenCommand('afk', function (Interaction $interaction) {
 	global $afk, $channel_main, $channel_admin;
 
