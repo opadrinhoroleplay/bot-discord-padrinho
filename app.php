@@ -719,7 +719,9 @@ $discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $newState, Di
 				$member->sendMessage("Olá! Este canal de voz é para conversas gerais, enquanto não estas a jogar. Se quiseres um canal privado, para ti e para os teus amigos/equipa utiliza o comando `/voz`.");
 			} elseif($newState->channel_id == config->discord->channels->voice->lobby) { // If member joined the lobby voice channel
 				$member->sendMessage("Olá! Cria um canal de voz privado para ti e para os teus amigos/equipa utilizando o comando `/voz`. Não é suposto ficar aqui a conversar com os outros membros.");
-			} elseif($newState->channel_id == config->discord->channels->voice->admin) { // If member joined the admin voice channel
+			} 
+		} else { // Member is an admin
+			if($newState->channel_id == config->discord->channels->voice->admin) { // If member joined the admin voice channel
 				$channel_admin->sendMessage("**$member->username** entrou no canal de voz de Administração $newState->channel.");
 			}
 		}
