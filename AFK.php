@@ -6,6 +6,8 @@ class AFK
 {
     static function set(Member $member, bool $setAFK, string $reason = NULL): bool
     {
+        global $db;
+
         $isAFK = self::get($member);
 
         // If we're setting the member as AFK
@@ -14,13 +16,13 @@ class AFK
             if ($isAFK) {
                 if ($reason) {
                     print("Updated AFK reason for '$member->username'. Reason: '$reason'\n");
-                    $reason = $GLOBALS["db"]->connection->escape_string($reason);
-                    $GLOBALS["db"]->query("UPDATE discord_afk SET reason = '$reason' WHERE member_id = '$member->id' AND time_unset IS NULL;");
+                    $reason = $db->connection->escape_string($reason);
+                    $db->query("UPDATE discord_afk SET reason = '$reason' WHERE member_id = '$member->id' AND time_unset IS NULL;");
 
                     return true;
                 } else {
                     print("Removed AFK status from '$member->username'.\n");
-                    $GLOBALS["db"]->query("UPDATE discord_afk SET time_unset = now() WHERE member_id = '$member->id';");
+                    $db->query("UPDATE discord_afk SET time_unset = now() WHERE member_id = '$member->id';");
                     $member->removeRole(config->discord->roles->afk);
 
                     return true;
@@ -28,10 +30,10 @@ class AFK
             } else { // If the member is not AFK then set him as AFK
                 print("Set '$member->username' as AFK. Reason: '$reason'\n");
                 if ($reason) { // Just to leave the field as NULL but meh
-                    $reason = $GLOBALS["db"]->connection->escape_string($reason);
-                    $GLOBALS["db"]->query("INSERT INTO discord_afk (member_id, reason) VALUES ('$member->id', '$reason');");
+                    $reason = $db->connection->escape_string($reason);
+                    $db->query("INSERT INTO discord_afk (member_id, reason) VALUES ('$member->id', '$reason');");
                 } else {
-                    $GLOBALS["db"]->query("INSERT INTO discord_afk (member_id) VALUES ('$member->id');");
+                    $db->query("INSERT INTO discord_afk (member_id) VALUES ('$member->id');");
                 }
                 $member->addRole(config->discord->roles->afk);
 
@@ -41,7 +43,7 @@ class AFK
             // If the member is AFK then remove the AFK status
             if ($isAFK) {
                 print("Removed AFK status for '$member->username'.\n");
-                $GLOBALS["db"]->query("UPDATE discord_afk SET time_unset = now() WHERE member_id = '$member->id';");
+                $db->query("UPDATE discord_afk SET time_unset = now() WHERE member_id = '$member->id';");
                 $member->removeRole(config->discord->roles->afk);
 
                 return true;
@@ -52,7 +54,7 @@ class AFK
     }
 
     // Get the AFK status of a Member
-    private function get(Member $member): bool|string
+    static function get(Member $member): bool|string
     {
         $query = $GLOBALS["db"]->query("SELECT reason FROM discord_afk WHERE member_id = '$member->id' AND time_unset IS NULL;");
         if ($query->num_rows > 0) return $query->fetch_column() ?? true; // If the member is AFK then return the reason or true if there is no reason

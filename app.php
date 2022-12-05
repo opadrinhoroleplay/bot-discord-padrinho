@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 // Get environment debug setting
-define("DEBUG", $argv[1] === "debug" ? true : false);
+@define("DEBUG", $argv[1] === "debug" ? true : false);
 if(DEBUG) print("Debug mode enabled\n\n");
 
 include("vendor/autoload.php");
@@ -319,7 +319,7 @@ $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
 });
 
 // Any actual message in the guild
-$discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) use ($afk, &$activity_counter) {
+$discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) {
 	global $db;
 
 	// With this it doesn't matter if it was a bot or not
@@ -345,8 +345,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 	if ($counter_type) $db->query("UPDATE discord_counters SET count = count + 1 WHERE type = '$counter_type' AND day = DATE(NOW());");
 
 	// Ignore messages from bots
-	if ($message->author->bot) {
-	} else { // If the message was not sent by a bot, then it was sent by a human
+	if (!$message->author->bot) {
 		// Check for bad words
 		if (BadWords::Scan($message)) {
 			global $channel_admin;
@@ -354,7 +353,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 		}
 
 		// Set a Member to not being AFK if they send a message
-		$afk->set($message->member, false);
+		AFK::set($message->member, false);
 
 		/* 
 			See if someone mentioned someone, and if they did, check if the mentioned user is AFK.
@@ -366,7 +365,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 
 				if ($member == NULL || !$member->roles->has(config->discord->roles->afk)) continue; // If the member is not in the server or is not AFK, then skip
 
-				$is_afk = $afk->get($member); // If true then member didn't set a reason, if string then member set a reason
+				$is_afk = AFK::get($member); // If true then member didn't set a reason, if string then member set a reason
 
 				if ($is_afk) {
 					$reason = gettype($is_afk) !== "string" ? "Burro(a) do caralho não utilizou `/afk`, por isso não sei qual é.." : $is_afk;
@@ -552,23 +551,22 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 
 	// Handle status updates
 	if (!array_key_exists($member->id, $member_status)) {
-		print("Setting status '$member->status' for '$member->username'.\n");
+		// print("Setting status '$member->status' for '$member->username'.\n");
 		$member_status[$member->id] = $member->status;
 
 		return;
 	} else { // We already have a previous status saved
-		global $afk;
-
 		$prev_status = $member_status[$member->id];
 		$curr_status = $member->status;
 
 		if ($prev_status != $curr_status) {
-			if ($curr_status == "idle") {
-				$afk->set($member, true);
+			if ($curr_status == "idle") { // User is AFK
+				// Kick out of any voice channel if AFK
+				// TODO: Only do it if the member is not on a mobile
 				// if ($member->getVoiceChannel()) $member->moveMember(NULL, "Became AFK."); // Remove member from the voice channels if they become AFK
-			} else $afk->set($member, false);
+			}
 
-			print("'$member->username' updated status: '$prev_status' -> '$curr_status'\n");
+			// print("'$member->username' updated status: '$prev_status' -> '$curr_status'\n");
 
 			$member_status[$member->id] = $curr_status; // Update the status
 
@@ -669,12 +667,12 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 	global $afk, $channel_main, $channel_admin;
 
 	$member  = $interaction->member;
-	$is_afk  = $afk->get($member);
+	$is_afk  = AFK::get($member);
 	$message = null;
 
 	if ($interaction->data->options) { // Member provided a reason so set them AFK with one
 		$reason = $interaction->data->options["razao"]->value;
-		$afk->set($member, true, $reason);
+		AFK::set($member, true, $reason);
 
 		if ($is_afk) { // Member is already AFK
 			$message = "**$member->username** actualizou a sua razão de **AFK** para: `$reason`";
@@ -683,10 +681,10 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 		}
 	} else { // No reason provided
 		if (!$is_afk) { // Member is not AFK so we set them AFK, without a reason
-			$afk->set($member, true);
+			AFK::set($member, true);
 			$message = "**$member->username** ficou agora **AFK**";
 		} else {
-			$afk->set($member, false); // Remove the AFK status
+			AFK::set($member, false); // Remove the AFK status
 			$message = "**$member->username** voltou de **AFK**";
 		}
 	}
@@ -702,25 +700,44 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 
 $discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $newState, Discord $discord, $oldState) {
 	global $channel_admin, $channel_log_voice;
-
-	$member  = $newState->member;
-	$channel = $newState->channel;
-
-	// Don't let the player move to the lobby channel, unless he's an admin
+	
+	$member = $newState->member;
+	
+	// Don't let the member move to the lobby channel, unless he's an admin
 	if (!IsMemberAdmin($member) && IsMemberIngame($member) && $newState->channel_id == config->discord->channels->voice->discussion) {
 		$member->moveMember($oldState->channel?->id ?? config->discord->channels->voice->lobby, "Tentou voltar para a Discussão Geral.");
 		$member->sendMessage("Não podes voltar para Discussão Geral enquanto estiveres a jogar.");
-		return;
 	}
 
-	if ($channel?->id == config->discord->channels->voice->admin && !$oldState?->channel) $channel_admin->sendMessage("$member->username entrou no $channel.");
+	// First time joining a voice channel
+	if(!$oldState?->channel) {
+		$channel_log_voice->sendMessage("**$member->username** entrou no canal de voz **$newState->channel**.");
+		
+		// Send messages if member is not an admin
+		if(!IsMemberAdmin($member)) {
+			if($newState->channel_id == config->discord->channels->voice->discussion) {// If member joined the main discussion voice channel
+				$member->sendMessage("Olá! Este canal de voz é para conversas gerais, enquanto não estas a jogar. Se quiseres um canal privado, para ti e para os teus amigos/equipa utiliza o comando `/voz`.");
+			} elseif($newState->channel_id == config->discord->channels->voice->lobby) { // If member joined the lobby voice channel
+				$member->sendMessage("Olá! Cria um canal de voz privado para ti e para os teus amigos/equipa utilizando o comando `/voz`. Não é suposto ficar aqui a conversar com os outros membros.");
+			} elseif($newState->channel_id == config->discord->channels->voice->admin) { // If member joined the admin voice channel
+				$channel_admin->sendMessage("**$member->username** entrou no canal de voz de Administração $newState->channel.");
+			}
+		}
+	} else { // Was already in a voice channel
+		// if($newState->channel_id == $oldState->channel_id) return; // Member didn't change channels. We don't need to do anything
 
-	$channel_log_voice->sendMessage($member->username . ($channel ?  " entrou no canal $channel." : " saiu do canal de voz."));
+		// Left the voice channel
+		if (!$newState->channel) {
+			$channel_log_voice->sendMessage("**$member->username** saiu do canal de voz **$oldState->channel**");
+		} else { // Moved to another voice channel
+			$channel_log_voice->sendMessage("**$member->username** saiu do canal de voz **$oldState->channel** e entrou no canal de voz **$newState->channel**");
+		}
+	}
 });
 
 $discord->listenCommand('voz', function (Interaction $interaction) {
-	$member  = $interaction->member;
-	$options = $interaction->data->options;
+	$member         = $interaction->member;
+	$options        = $interaction->data->options;
 	$member_channel = GetMemberVoiceChannel($member);
 
 	// Get allowed members from interaction arguments
@@ -739,12 +756,14 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 		if ($member_object) $channel_members[] = $member_object;
 	}
 
+	// Check if anyone was mentioned
 	if (!count($channel_members)) {
 		$interaction->respondWithMessage(MessageBuilder::new()->setContent("Não consegui identificar algum Membro. Tens que '@mencionar' cada um deles."), true);
 		return;
 	}
 
-	if ($member_channel) { // Member has a channel for themselves already, so let's edit that instead
+	// Member has a channel for themselves already, so let's edit that instead
+	if ($member_channel) {
 		// Grab the Channel object first
 		$member_channel = $interaction->guild->channels->get("id", $member_channel);
 
@@ -779,7 +798,10 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 		// Submit the part
 		$interaction->guild->channels->save($new_channel, "Canal de Voz para '$member->username'")->done(
 			function (Channel $channel) use ($interaction, $member, $channel_members) {
+				global $channel_admin;
+
 				print("Created a new Voice Channel: '$channel->name' Members: ");
+				$channel_admin->sendMessage("$member criou um novo Canal de Voz Privado: $channel");
 
 				// Set permissions for each member and send them a message
 				foreach ($channel_members as $channel_member) {
