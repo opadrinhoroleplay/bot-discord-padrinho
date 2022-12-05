@@ -1,9 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 // Get environment debug setting
-define("DEBUG", getenv('DEBUG') ?: false);
+define("DEBUG", $argv[1] === "debug" ? true : false);
+if(DEBUG) print("Debug mode enabled\n\n");
 
 include("vendor/autoload.php");
 include("config.php");
