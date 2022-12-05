@@ -34,8 +34,17 @@ class DatabaseConnection {
     }
 
     public function query($query): mysqli_result|bool {
+        if(DEBUG) print("[Database] Query: $query\n");
+
         // If the connection is dead then reconnect
-        if (!$this->connection->ping()) $this->connect();
+        try {
+            if (!$this->connection->ping()) {
+                print("[Database] Connection is dead. Reconnecting...\n");
+                $this->connect();
+            }
+        } catch (Exception $e) {
+            print("[Database] Failed to ping database: $e->getMessage()\n");
+        }
 
         $result = $this->connection->query($query);
         if (!$result) echo "[Database] Query failed: ({$this->connection->errno} {$this->connection->error})\n";

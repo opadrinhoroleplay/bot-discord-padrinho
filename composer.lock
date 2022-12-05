@@ -1187,16 +1187,16 @@
         },
         {
             "name": "react/datagram",
-            "version": "v1.8.0",
+            "version": "v1.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/reactphp/datagram.git",
-                "reference": "40f2c39f83541367018605a73b57c99186f7145c"
+                "reference": "13c259bb2fd04f238eeb85f3783167eedec46e2c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/reactphp/datagram/zipball/40f2c39f83541367018605a73b57c99186f7145c",
-                "reference": "40f2c39f83541367018605a73b57c99186f7145c",
+                "url": "https://api.github.com/repos/reactphp/datagram/zipball/13c259bb2fd04f238eeb85f3783167eedec46e2c",
+                "reference": "13c259bb2fd04f238eeb85f3783167eedec46e2c",
                 "shasum": ""
             },
             "require": {
@@ -1204,16 +1204,16 @@
                 "php": ">=5.3",
                 "react/dns": "^1.7",
                 "react/event-loop": "^1.2",
-                "react/promise": "~2.1|~1.2"
+                "react/promise": "^3 || ^2.1 || ^1.2"
             },
             "require-dev": {
-                "clue/block-react": "~1.0",
-                "phpunit/phpunit": "^9.3 || ^5.7 || ^4.8.35"
+                "phpunit/phpunit": "^9.5 || ^5.7 || ^4.8.35",
+                "react/async": "^4 || ^3 || ^2"
             },
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "React\\Datagram\\": "src"
+                    "React\\Datagram\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -1256,19 +1256,15 @@
             ],
             "support": {
                 "issues": "https://github.com/reactphp/datagram/issues",
-                "source": "https://github.com/reactphp/datagram/tree/v1.8.0"
+                "source": "https://github.com/reactphp/datagram/tree/v1.9.0"
             },
             "funding": [
                 {
-                    "url": "https://github.com/WyriHaximus",
-                    "type": "github"
-                },
-                {
-                    "url": "https://github.com/clue",
-                    "type": "github"
+                    "url": "https://opencollective.com/reactphp",
+                    "type": "open_collective"
                 }
             ],
-            "time": "2021-07-11T13:06:40+00:00"
+            "time": "2022-12-05T13:45:40+00:00"
         },
         {
             "name": "react/dns",
@@ -2478,12 +2474,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/discord-php/DiscordPHP.git",
-                "reference": "d3fbf6e6f7712d53fca8a070d3e670a2c1012c57"
+                "reference": "c85b9ee44fb1f1dcb640261ffc62a7cc3c458c85"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/d3fbf6e6f7712d53fca8a070d3e670a2c1012c57",
-                "reference": "d3fbf6e6f7712d53fca8a070d3e670a2c1012c57",
+                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/c85b9ee44fb1f1dcb640261ffc62a7cc3c458c85",
+                "reference": "c85b9ee44fb1f1dcb640261ffc62a7cc3c458c85",
                 "shasum": ""
             },
             "require": {
@@ -2545,7 +2541,7 @@
                 "issues": "https://github.com/discord-php/DiscordPHP/issues",
                 "source": "https://github.com/discord-php/DiscordPHP/tree/master"
             },
-            "time": "2022-12-01T13:17:40+00:00"
+            "time": "2022-12-05T02:19:57+00:00"
         },
         {
             "name": "trafficcophp/bytebuffer",

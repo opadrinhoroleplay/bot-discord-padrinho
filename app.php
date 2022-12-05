@@ -1,14 +1,16 @@
 <?php
+
 declare(strict_types=1);
 
 // Get environment debug setting
 @define("DEBUG", $argv[1] === "debug" ? true : false);
-if(DEBUG) print("Debug mode enabled\n\n");
+if (DEBUG) print("Debug mode enabled\n\n");
 
 include("vendor/autoload.php");
 include("config.php");
 include("Database.class.php");
 include("Utils.php");
+include("Member.class.php");
 include("GameSessions.class.php");
 include("TimeKeeping.php");
 include("Trivia.php");
@@ -169,65 +171,126 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 				while ($counter = $query->fetch_assoc()) $activity_counter[$counter["type"]] = $counter["count"];
 
 				// Resumir o dia
-				$activity_string = "";
+				$activity_string = "**Desenvolvimento**:\n";
 
 				switch ($activity_counter["dev_messages"]) {
 					case 0:
-						$activity_string .= "- Nenhuma mensagem de desenvolvimento foi enviada hoje.";
+						$activity_string .= "- Nenhuma mensagem no canal desenvolvimento.";
 						break;
 					case 1:
-						$activity_string .= "- Uma mensagem de desenvolvimento foi enviada hoje.";
+						$activity_string .= "- Apenas uma mensagem no canal desenvolvimento.";
 						break;
 					default:
-						$activity_string .= "- {$activity_counter["dev_messages"]} mensagens de desenvolvimento foram enviadas hoje. 🥳";
+						$activity_string .= "- {$activity_counter["dev_messages"]} mensagens no canal de desenvolvimento.";
 						break;
 				}
-				$activity_string .= PHP_EOL;
+				$activity_string .= "**GitHub**:\n";
 
 				switch ($activity_counter["github"]) {
 					case 0:
-						$activity_string .= "- Nenhum commit foi feito hoje.";
+						$activity_string .= "- Nenhum push de código.";
 						break;
 					case 1:
-						$activity_string .= "- Um commit foi feito hoje.";
+						$activity_string .= "- Apenas um push de código.";
 						break;
 					default:
-						$activity_string .= "- {$activity_counter["github"]} pushes foram feitos hoje. 🥳";
+						$activity_string .= "- {$activity_counter["github"]} pushes de código.";
 						break;
 				}
-				$activity_string .= PHP_EOL;
+				$activity_string .= "**Clickup**:\n";
 
 				switch ($activity_counter["clickup"]) {
 					case 0:
-						$activity_string .= "- Nenhuma tarefa foi concluída hoje.";
+						$activity_string .= "- Nenhuma tarefa foi concluída.";
 						break;
 					case 1:
-						$activity_string .= "- Uma tarefa foi concluída hoje.";
+						$activity_string .= "- Apenas uma tarefa concluída.";
 						break;
 					default:
-						$activity_string .= "- {$activity_counter["clickup"]} tarefas foram concluídas hoje. 🥳";
+						$activity_string .= "- {$activity_counter["clickup"]} tarefas concluídas hoje.";
 						break;
 				}
-				$activity_string .= PHP_EOL;
+				$activity_string .= "**Administração**:\n";
 
 				switch ($activity_counter["admin_messages"]) {
 					case 0:
-						$activity_string .= "- Nenhuma mensagem de administração foi enviada hoje.";
+						$activity_string .= "- Nenhuma mensagem de administração.";
 						break;
 					case 1:
-						$activity_string .= "- Uma mensagem de administração foi enviada hoje.";
+						$activity_string .= "- Uma mensagem de administração.";
 						break;
 					default:
-						$activity_string .= "- {$activity_counter["admin_messages"]} mensagens de administração foram enviadas hoje. 🥳";
+						$activity_string .= "- {$activity_counter["admin_messages"]} mensagens de administração enviadas.";
 						break;
 				}
 
 				$channel_main->sendMessage("**Resumo do dia**:\n{$activity_string}");
 
 				// Init the counters for the next day
-				global $db;
-				foreach ($activity_counter as $type => $value) {
-					$db->query("INSERT INTO discord_counters (type) VALUES ('$type');");
+				foreach ($activity_counter as $type) $GLOBALS["db"]->query("INSERT INTO discord_counters (type) VALUES ('$type');");
+
+				/* Admin Reset
+				Remove all admin roles from all members
+				Send them a private message checking if they are going to be present in the next 24 hours
+				If they are, give them the admin role back
+				*/
+				global $guild;
+				$channel_admin->sendMessage("A reiniciar todos os cargos de administração...");
+				$admins = $guild->roles->get("id", config->discord->roles->admin);
+				foreach ($admins->members as $member) {
+					// Don't remove owner
+					if ($member->id == config->discord->users->owner) continue;
+
+					$member->removeRole(config->discord->roles->admin);
+					$member->sendMessage(
+						"O teu cargo de administração foi removido. Se planeares estar presente nas próximas 24 horas, clica no Emoji.\n
+						Se clicares no Emoji e não estiveres presente, serás removido do cargo de administração permanentemente."
+					)->then(
+						function ($message) use ($member) {
+							$message->react("✅");
+
+							$collector = $message->createReactionCollector(function ($reaction, $user) {
+								return true;
+							}, [
+								"time" => 604800000,   // Wait a week for a response
+								"max"  => 1            // Only one reaction allowed
+							]);
+
+							// If member didn't react, send a message to the admin channel and alert the member that they were removed from the admin role
+							$collector->on("end", function ($reactions) use ($member) {
+								if (count($reactions)) return; // Member reacted, don't do anything
+
+								global $channel_admin;
+								$channel_admin->sendMessage("$member não respondeu ao pedido de presença passado uma semana. Foi removido permanentemente.");
+								$member->sendMessage("Não respondeste ao pedido de presença passado uma semana. Foste removido permanentemente do cargo de administração.")->then(function ($message) { $message->delete(60); });;
+							});
+
+							// If the user reacts, give them the admin role back
+							$collector->once("collect", function (MessageReaction $reaction, $user) use ($member) {
+								$member->addRole(config->discord->roles->admin);
+								$member->sendMessage("O teu cargo de administração foi restaurado.")->then(function ($message) { $message->delete(60); });
+								$reaction->message->delete(60); // Delete the original message after 60 seconds
+							});
+						}
+					);
+				}
+				$channel_admin->sendMessage("Todos os cargos de administração foram removidos.");
+
+				// Verify from the database who was last online over a week ago and remove them from the admin role if they were
+				$admins = $db->query("SELECT * FROM discord_admins WHERE last_active < DATE_SUB(NOW(), INTERVAL 1 WEEK);");
+				$admins = $admins->fetch_all(MYSQLI_ASSOC);
+
+				if(count($admins)) {
+					$channel_admin->sendMessage("A remover cargos de administração de utilizadores que não estiveram ativos há mais de uma semana...");
+					foreach ($admins as $admin) {
+						$member = $guild->members->get("id", $admin["id"]);
+						if (!$member) continue; // Member left the server
+
+						$member->removeRole(config->discord->roles->admin);
+						$member->sendMessage("Não estiveste presente no servidor durante uma semana. Foste removido do cargo de administração.");
+						$channel_admin->sendMessage("$member não esteve presente no servidor durante uma semana. Foi removido do cargo de administração.");
+						print("[MEMBER] $member->username#$member->discriminator was removed from the admin role because they were inactive for a week.\n");
+					}
 				}
 
 				break;
@@ -276,7 +339,9 @@ $discord->on(Event::GUILD_MEMBER_ADD, function (Member $member, Discord $discord
 
 	print("[JOIN] Member $new_member joined the server.\n");
 
-	$channel_main->sendMessage("Bem-vindo ao servidor, $member!")->done(function (Message $message) { $message->react("👋"); });
+	$channel_main->sendMessage("Bem-vindo ao servidor, $member!")->done(function (Message $message) {
+		$message->react("👋");
+	});
 
 	// Loop through all the invites and check against the $invites_uses array to see if an invite was used
 	$guild->invites->freshen()->done(function (Collection $invites) use ($discord, $guild, $member, $new_member) {
@@ -313,14 +378,14 @@ $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
 
 	// Delete invites that are not created by our bot or VIRUXE
 	if ($invite->inviter->id != $discord->id && $invite->inviter->id != config->discord->users->viruxe) {
-		$channel_admin->sendMessage("O utilizador tentou <@{$invite->inviter->id}> criar um convite ($invite->code).");
+		$channel_admin->sendMessage("O utilizador <@{$invite->inviter->id}> tentou criar um convite ($invite->code).");
 		$invite->guild->invites->delete($invite);
 	}
 });
 
 // Any actual message in the guild
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) {
-	global $db;
+	global $db, $channel_admin;
 
 	// With this it doesn't matter if it was a bot or not
 	// Get the channel the message was sent in, so we can increment the activity counter for that channel
@@ -348,8 +413,15 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 	if (!$message->author->bot) {
 		// Check for bad words
 		if (BadWords::Scan($message)) {
-			global $channel_admin;
 			$channel_admin->sendMessage("Eliminei uma mensagem de '{$message->author->username}' no '{$message->channel->name}' por utilizar uma palavra banida: - `$message->content`");
+		}
+
+		// Check if member already exists in database and if not, add him
+		if (!\Member::Exists($message->member)) {
+			\Member::Create($message->member);
+		} else { // If member already exists, update his last activity
+			// Update 'last_active' field in 'discord_members' table if member already exists
+			$db->query("UPDATE discord_members SET last_active = NOW() WHERE id = '{$message->author->id}';");
 		}
 
 		// Set a Member to not being AFK if they send a message
@@ -362,14 +434,15 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 		if (preg_match_all("/<@!?(\d+)>/", $message->content, $matches)) {
 			foreach ($matches[1] as $id) {
 				$member = $message->guild->members->get("id", $id);
+				print("Member $member->username#$member->discriminator was mentioned in message $message->id by {$message->author->username}#{$message->author->discriminator}.\n");
 
 				if ($member == NULL || !$member->roles->has(config->discord->roles->afk)) continue; // If the member is not in the server or is not AFK, then skip
 
 				$is_afk = AFK::get($member); // If true then member didn't set a reason, if string then member set a reason
 
 				if ($is_afk) {
-					$reason = gettype($is_afk) !== "string" ? "Burro(a) do caralho não utilizou `/afk`, por isso não sei qual é.." : $is_afk;
-					$message->channel->sendMessage("O utilizador **{$member->username}** está AFK. **Razão**: `$reason`");
+					$reason = gettype($is_afk) !== "string" ? "Razão desconhecida." : $is_afk;
+					$message->channel->sendMessage("O membro **{$member->username}** está AFK. **Razão**: `$reason`");
 				}
 			}
 		}
@@ -447,9 +520,7 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 			// Remove the present role if the user has it
 			if ($reaction->member->roles->has(config->discord->roles->present)) $reaction->member->removeRole(config->discord->roles->present);
 		} else { // If the reaction is not 👍 or 👎
-			$reaction->delete()->done(function () use ($channel_admin, $reaction) {
-				$channel_admin->sendMessage("$reaction->member para quieto fdp. Estás-te a armar quê? Push, queres é festa.");
-			});
+			$reaction->delete()->done(function () use ($channel_admin, $reaction) { $channel_admin->sendMessage("$reaction->member para quieto fdp. Estás-te a armar quê? Push, queres é festa."); });
 		}
 	}
 });
@@ -564,6 +635,9 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 				// Kick out of any voice channel if AFK
 				// TODO: Only do it if the member is not on a mobile
 				// if ($member->getVoiceChannel()) $member->moveMember(NULL, "Became AFK."); // Remove member from the voice channels if they become AFK
+			} else if ($curr_status == "online") { // User is back online
+				// Update 'last_active' field in 'discord_members' table if the member that sent the message is an admin
+				if (IsMemberAdmin($member)) $GLOBALS["db"]->query("UPDATE discord_members SET last_online = NOW() WHERE id = '{$member->id}';");
 			}
 
 			// print("'$member->username' updated status: '$prev_status' -> '$curr_status'\n");
@@ -631,10 +705,9 @@ $discord->listenCommand('convite', function (Interaction $interaction) {
 			"max_uses"  => 0,
 			"temporary" => false,
 			"unique"    => true
-		], "Codigo de Convite para '{$username}'")->done(function (Invite $invite) use ($interaction, $db, $username, $inviter_slug) {
-			// Check in the 'discord_members' table if the member already exists. If not, create a new entry
-			$query = $db->query("SELECT username FROM discord_members WHERE id = {$interaction->user->id}");
-			if ($query->num_rows == 0) $db->query("INSERT INTO discord_members (id, username) VALUES ({$interaction->user->id}, '{$username}')");
+		], "Codigo de Convite para '$username'")->done(function (Invite $invite) use ($interaction, $db, $username, $inviter_slug) {
+			// Check if the member already exists in the database, if not, create a new one
+			if (!\Member::Exists($interaction->member)) \Member::Create($interaction->member);
 
 			// Get the code and insert it into the database
 			$invite_insert = $db->query("INSERT INTO invites (code, inviter_id, inviter_slug) VALUES ('$invite->code', '{$interaction->user->id}', '$inviter_slug')");
@@ -700,9 +773,9 @@ $discord->listenCommand('afk', function (Interaction $interaction) {
 
 $discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $newState, Discord $discord, $oldState) {
 	global $channel_admin, $channel_log_voice;
-	
+
 	$member = $newState->member;
-	
+
 	// Don't let the member move to the lobby channel, unless he's an admin
 	if (!IsMemberAdmin($member) && IsMemberIngame($member) && $newState->channel_id == config->discord->channels->voice->discussion) {
 		$member->moveMember($oldState->channel?->id ?? config->discord->channels->voice->lobby, "Tentou voltar para a Discussão Geral.");
@@ -710,18 +783,18 @@ $discord->on(Event::VOICE_STATE_UPDATE, function (VoiceStateUpdate $newState, Di
 	}
 
 	// First time joining a voice channel
-	if(!$oldState?->channel) {
+	if (!$oldState?->channel) {
 		$channel_log_voice->sendMessage("**$member->username** entrou no canal de voz **$newState->channel**.");
-		
+
 		// Send messages if member is not an admin
-		if(!IsMemberAdmin($member)) {
-			if($newState->channel_id == config->discord->channels->voice->discussion) {// If member joined the main discussion voice channel
+		if (!IsMemberAdmin($member)) {
+			if ($newState->channel_id == config->discord->channels->voice->discussion) { // If member joined the main discussion voice channel
 				$member->sendMessage("Olá! Este canal de voz é para conversas gerais, enquanto não estas a jogar. Se quiseres um canal privado, para ti e para os teus amigos/equipa utiliza o comando `/voz`.");
-			} elseif($newState->channel_id == config->discord->channels->voice->lobby) { // If member joined the lobby voice channel
+			} elseif ($newState->channel_id == config->discord->channels->voice->lobby) { // If member joined the lobby voice channel
 				$member->sendMessage("Olá! Cria um canal de voz privado para ti e para os teus amigos/equipa utilizando o comando `/voz`. Não é suposto ficar aqui a conversar com os outros membros.");
-			} 
+			}
 		} else { // Member is an admin
-			if($newState->channel_id == config->discord->channels->voice->admin) { // If member joined the admin voice channel
+			if ($newState->channel_id == config->discord->channels->voice->admin) { // If member joined the admin voice channel
 				$channel_admin->sendMessage("**$member->username** entrou no canal de voz de Administração $newState->channel.");
 			}
 		}
