@@ -262,13 +262,17 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 
 								global $channel_admin;
 								$channel_admin->sendMessage("$member não respondeu ao pedido de presença passado uma semana. Foi removido permanentemente.");
-								$member->sendMessage("Não respondeste ao pedido de presença passado uma semana. Foste removido permanentemente do cargo de administração.")->then(function ($message) { $message->delete(60); });;
+								$member->sendMessage("Não respondeste ao pedido de presença passado uma semana. Foste removido permanentemente do cargo de administração.")->then(function ($message) {
+									$message->delete(60);
+								});;
 							});
 
 							// If the user reacts, give them the admin role back
 							$collector->once("collect", function (MessageReaction $reaction, $user) use ($member) {
 								$member->addRole(config->discord->roles->admin);
-								$member->sendMessage("O teu cargo de administração foi restaurado.")->then(function ($message) { $message->delete(60); });
+								$member->sendMessage("O teu cargo de administração foi restaurado.")->then(function ($message) {
+									$message->delete(60);
+								});
 								$reaction->message->delete(60); // Delete the original message after 60 seconds
 							});
 						}
@@ -280,7 +284,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 				$admins = $db->query("SELECT * FROM discord_admins WHERE last_active < DATE_SUB(NOW(), INTERVAL 1 WEEK);");
 				$admins = $admins->fetch_all(MYSQLI_ASSOC);
 
-				if(count($admins)) {
+				if (count($admins)) {
 					$channel_admin->sendMessage("A remover cargos de administração de utilizadores que não estiveram ativos há mais de uma semana...");
 					foreach ($admins as $admin) {
 						$member = $guild->members->get("id", $admin["id"]);
@@ -520,7 +524,9 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 			// Remove the present role if the user has it
 			if ($reaction->member->roles->has(config->discord->roles->present)) $reaction->member->removeRole(config->discord->roles->present);
 		} else { // If the reaction is not 👍 or 👎
-			$reaction->delete()->done(function () use ($channel_admin, $reaction) { $channel_admin->sendMessage("$reaction->member para quieto fdp. Estás-te a armar quê? Push, queres é festa."); });
+			$reaction->delete()->done(function () use ($channel_admin, $reaction) {
+				$channel_admin->sendMessage("$reaction->member para quieto fdp. Estás-te a armar quê? Push, queres é festa.");
+			});
 		}
 	}
 });
@@ -634,14 +640,13 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 			if ($curr_status == "idle") { // User is AFK
 				// Kick out of any voice channel if AFK
 				// TODO: Only do it if the member is not on a mobile
+
 				// if ($member->getVoiceChannel()) $member->moveMember(NULL, "Became AFK."); // Remove member from the voice channels if they become AFK
-			} else if ($curr_status == "online") { // User is back online
-				// Update 'last_active' field in 'discord_members' table if the member that sent the message is an admin
-				if (IsMemberAdmin($member)) $GLOBALS["db"]->query("UPDATE discord_members SET last_online = NOW() WHERE id = '{$member->id}';");
+			} elseif ($curr_status == "offline") { // User is now offline (or invisible) so update the last seen time in the database
+				$GLOBALS["db"]->query("UPDATE discord_members SET last_online = NOW() WHERE id = '{$member->id}';");
 			}
 
 			// print("'$member->username' updated status: '$prev_status' -> '$curr_status'\n");
-
 			$member_status[$member->id] = $curr_status; // Update the status
 
 			return;
