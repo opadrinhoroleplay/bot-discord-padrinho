@@ -1,11 +1,25 @@
 <?php
 use Discord\Parts\User\Member as DiscordMember;
 
-class Member {
-    static function Exists(DiscordMember $member) {
-        $query = $GLOBALS["db"]->query("SELECT NULL FROM discord_members WHERE id = '{$member->id}';");
+enum MemberStatus: string {
+    case Online       = "online";
+    case Idle         = "idle";
+    case DoNotDisturb = "dnd";
+    case Invisible    = "invisible";
+    case Offline      = "offline";
+}
 
-        return $query->num_rows > 0;
+enum MemberActiveStatus: string {
+    case Inactive = "inactive";
+    case Active   = "active";
+}
+
+class Member {
+    static function Exists(DiscordMember $member): MemberActiveStatus|null {
+        $query = $GLOBALS["db"]->query("SELECT active FROM discord_members WHERE id = '{$member->id}';");
+        if ($query->num_rows) return $query->fetch_column() === "1" ? MemberActiveStatus::Active : MemberActiveStatus::Inactive;
+
+        return null;
     }
 
     static function Create(DiscordMember $member) {
@@ -43,5 +57,21 @@ class Member {
 
             return $query;
         }
+    }
+
+    // Check members in the database are still in the guild
+    // If not, set them their 'active' column to 0
+    static function Purge() {
+        $query = $GLOBALS["db"]->query("SELECT id FROM discord_members WHERE active = 1;");
+        while($row = $query->fetch_assoc()) {
+            $member = $GLOBALS["guild"]->members->get("id", $row["id"]);
+            if(!$member) {
+                $query = $GLOBALS["db"]->query("UPDATE discord_members SET active = 0 WHERE id = '{$row["id"]}';");
+                if($query) print("[MEMBER] Set {$row["id"]} to inactive\n"); else print("[MEMBER] Failed to set {$row["id"]} to inactive\n");
+            }
+        }
+        // Update 'last_purge' in discord_maintenance
+        $query = $GLOBALS["db"]->query("UPDATE discord_maintenance SET last_purge = NOW();");
+        if($query) print("[MAINTENANCE] Updated last purge time\n"); else print("[MAINTENANCE] Failed to update last purge time\n");
     }
 }

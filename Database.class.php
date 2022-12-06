@@ -42,13 +42,24 @@ class DatabaseConnection {
         }
 
         // If the connection is dead then reconnect
-        if (!$this->connection->ping()) {
-            print("[Database] Connection is dead. Reconnecting...\n");
+        try {
+            if(!$this->connection->ping()) {
+                print("[Database] Connection is dead. Reconnecting...\n");
+                $this->connect();
+            }
+        } catch (Exception $e) {
+            $error_message = $e->getMessage();
+            print("[Database] Connection is dead ($error_message). Reconnecting...\n");
             $this->connect();
         }
 
-        $result = $this->connection->query($query);
-        if (!$result) echo "[Database] Query failed: ({$this->connection->errno} {$this->connection->error})\n";
+        try {
+            $result = $this->connection->query($query);
+            if (!$result) echo "[Database] Query failed: ({$this->connection->errno} {$this->connection->error})\n";
+        } catch (Exception $e) {
+            $error_message = $e->getMessage();
+            print("[Database] Query failed ($error_message): $query\n");
+        }
 
         return $result;
     }

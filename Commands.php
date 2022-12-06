@@ -1,4 +1,6 @@
 <?php
+use Discord\Parts\Interactions\Command\Command;
+
 // $discord = $_GLOBALS["discord"];
 
 /* $discord->application->commands->save(new Command($discord, [
@@ -45,6 +47,6 @@
 ); */
 
 /* $discord->application->commands->save(new Command($discord, [
-    "name" => "convite",
-    "description" => "Obtém o teu código de convite, para que os teus amigos possam entrar no Servidor.",
+    "name" => "adminactivity",
+    "description" => "Mostra a última vez que os administradores estiveram ativos.",
 ])); */

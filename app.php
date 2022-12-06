@@ -17,6 +17,7 @@ include("Trivia.php");
 include("AFK.php");
 include("BadWords.php");
 include("FiveM.php");
+include("Admin.class.php");
 
 // date_default_timezone_set('Europe/Lisbon');
 
@@ -40,8 +41,6 @@ use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
-
-use Discord\Parts\Interactions\Command\Command;
 
 use Utils\Words;
 
@@ -312,6 +311,9 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 
 					$rollcall_message_id = $message->id;
 				});
+
+				
+
 				break;
 			default: // Send a random joke
 				if (rand(1, 100) > 10) break;
@@ -672,6 +674,28 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 
 	// if($traidorfdp) $channel_log_traidores->sendMessage("**{$member->username}** está a jogar roleplay noutro servidor.");
 	// $channel_log_ingame->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game", "playing", $game->name, $game->state) : "está agora a jogar **$game->name**") . ($traidorfdp ? " @here" : NULL) : _U("game", "not_playing")));
+});
+
+$discord->listenCommand("adminactivity", function(Interaction $interaction) {
+	// Send a list of the time everyone with the admin role was last active, to the admin channel
+	$message_string = "**Última atividade da Equipa**:\n";
+	foreach (Admin::GetAdmins() as $admin) {
+		$last_online = $admin["last_online"] ?? "Nunca";
+		$last_online_over_a_day = strtotime($last_online) < strtotime("-1 day");
+		$last_active = $admin["last_active"] ?? "Nunca";
+		$last_active_over_a_day = strtotime($last_active) < strtotime("-1 day");
+		// Was admin not active but was online?
+		$last_online_but_not_active = $last_online_over_a_day && !$last_active_over_a_day;
+		// Show an :x: emoji if the admin was online but not active, a :warning: emoji if they were not online during that period and a :white_check_mark: emoji if they were active
+		$emoji = $last_online_but_not_active ? ":warning:" : ($last_active_over_a_day ? ":x:" : ":white_check_mark:");
+		// $admin_string = $last_online_but_not_active ? "<@$admin[id]>" : $admin["username"];
+		// $message_string .= "**$admin_string**: $last_active $emoji\n";
+		$message_string .= "**$admin[username]**: $last_active $emoji\n";
+	}
+	
+	$interaction->respondWithMessage(MessageBuilder::new()->setContent($message_string), false);
+
+	return true;
 });
 
 $discord->listenCommand("rollcall", function (Interaction $interaction) use (&$rollcall_message_id) {
