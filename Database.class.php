@@ -42,13 +42,9 @@ class DatabaseConnection {
         }
 
         // If the connection is dead then reconnect
-        try {
-            if (!$this->connection->ping()) {
-                print("[Database] Connection is dead. Reconnecting...\n");
-                $this->connect();
-            }
-        } catch (Exception $e) {
-            print("[Database] Failed to ping database: $e->getMessage()\n");
+        if (!$this->connection->ping()) {
+            print("[Database] Connection is dead. Reconnecting...\n");
+            $this->connect();
         }
 
         $result = $this->connection->query($query);

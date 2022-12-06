@@ -2474,12 +2474,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/discord-php/DiscordPHP.git",
-                "reference": "c85b9ee44fb1f1dcb640261ffc62a7cc3c458c85"
+                "reference": "ded817c8fdfb95367c3941f0ec5c96605f558984"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/c85b9ee44fb1f1dcb640261ffc62a7cc3c458c85",
-                "reference": "c85b9ee44fb1f1dcb640261ffc62a7cc3c458c85",
+                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/ded817c8fdfb95367c3941f0ec5c96605f558984",
+                "reference": "ded817c8fdfb95367c3941f0ec5c96605f558984",
                 "shasum": ""
             },
             "require": {
@@ -2539,9 +2539,9 @@
             "description": "An unofficial API to interact with the voice and text service Discord.",
             "support": {
                 "issues": "https://github.com/discord-php/DiscordPHP/issues",
-                "source": "https://github.com/discord-php/DiscordPHP/tree/master"
+                "source": "https://github.com/discord-php/DiscordPHP/tree/v10.0.0-RC2"
             },
-            "time": "2022-12-05T02:19:57+00:00"
+            "time": "2022-12-06T03:26:08+00:00"
         },
         {
             "name": "trafficcophp/bytebuffer",

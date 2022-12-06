@@ -281,7 +281,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 				$channel_admin->sendMessage("Todos os cargos de administração foram removidos.");
 
 				// Verify from the database who was last online over a week ago and remove them from the admin role if they were
-				$admins = $db->query("SELECT * FROM discord_admins WHERE last_active < DATE_SUB(NOW(), INTERVAL 1 WEEK);");
+				$admins = $db->query("SELECT * FROM discord_members WHERE last_active < DATE_SUB(NOW(), INTERVAL 1 WEEK);");
 				$admins = $admins->fetch_all(MYSQLI_ASSOC);
 
 				if (count($admins)) {
@@ -396,10 +396,10 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 	$counter_type = NULL;
 
 	switch ($message->channel_id) {
-		case config->discord->channels->desenvolvimento:
+		case !$message->author->bot && config->discord->channels->desenvolvimento:
 			$counter_type = "dev_messages";
 			break;
-		case config->discord->channels->admin:
+		case !$message->author->bot && config->discord->channels->admin:
 			$counter_type = "admin_messages";
 			break;
 		case config->discord->channels->clickup:
@@ -420,7 +420,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 			$channel_admin->sendMessage("Eliminei uma mensagem de '{$message->author->username}' no '{$message->channel->name}' por utilizar uma palavra banida: - `$message->content`");
 		}
 
-		\Member::SetLastOnline($message->member);
+		\Member::SetLastActive($message->member);
 
 		// Set a Member to not being AFK if they send a message
 		AFK::set($message->member, false);
@@ -510,13 +510,17 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 			];
 
 			$channel_admin->sendMessage(sprintf($replies[rand(0, count($replies) - 1)] . ". :handshake:", $reaction->member));
-
-			$reaction->member->addRole(config->discord->roles->present);
+			
+			// Remove bot's reaction if there is more than 1 reaction
+			if (count($reaction->message->reactions) == 2) {
+				$reaction->message->deleteReaction(Message::REACT_DELETE_ME, $reaction->emoji); // Remove the bot's reaction
+			}
 		} elseif ($reaction->emoji->name == "👎") { // If the user reacted with a thumbs down
 			$channel_admin->sendMessage("Tranquilo {$reaction->member}, vemos-te amanhã então. :wave:");
-
-			// Remove the present role if the user has it
-			if ($reaction->member->roles->has(config->discord->roles->present)) $reaction->member->removeRole(config->discord->roles->present);
+			// Remove bot's reaction if there is more than 1 reaction
+			if (count($reaction->message->reactions) == 2) {
+				$reaction->message->deleteReaction(Message::REACT_DELETE_ME, $reaction->emoji); // Remove the bot's reaction
+			}
 		} else { // If the reaction is not 👍 or 👎
 			$reaction->delete()->done(function () use ($channel_admin, $reaction) {
 				$channel_admin->sendMessage("$reaction->member para quieto fdp. Estás-te a armar quê? Push, queres é festa.");
