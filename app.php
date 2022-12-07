@@ -247,7 +247,6 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 
 					print("Removing admin role from " . $admin->username . " (" . $admin->id . ")\n");
 
-					$member->sendMessage(
 					$admin->removeRole(config->discord->roles->admin);
 					$admin->sendMessage(
 						"O teu cargo de administração foi removido. Se planeares estar presente nas próximas 24 horas, clica no Emoji.\n
