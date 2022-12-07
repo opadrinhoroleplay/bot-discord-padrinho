@@ -92,6 +92,8 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 	$channel_log_ingame    = $guild->channels->get("id", config->discord->channels->log->ingame);
 	$channel_log_voice     = $guild->channels->get("id", config->discord->channels->log->voice);
 
+
+
 	include("Commands.php");
 
 	// Send startup message to the admin channel, with the bot's version. Only if the bot is not in debug mode
@@ -234,50 +236,60 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 				If they are, give them the admin role back
 				*/
 				global $guild;
-				$channel_admin->sendMessage("A reiniciar todos os cargos de administração...");
-				$admins = $guild->roles->get("id", config->discord->roles->admin);
-				foreach ($admins->members as $member) {
-					// Don't remove owner
-					if ($member->id == config->discord->users->owner) continue;
+				$admins = $guild->members->filter(function ($member) {
+					return $member->roles->has(config->discord->roles->admin);
+				});
+				$channel_admin->sendMessage("A efetuar reset de admins...");
 
-					$member->removeRole(config->discord->roles->admin);
+				foreach ($admins as $admin) {
+					// Don't remove owner
+					if ($admin->user->bot || $admin->id == config->discord->users->owner) continue;
+
+					print("Removing admin role from " . $admin->username . " (" . $admin->id . ")\n");
+
 					$member->sendMessage(
+					$admin->removeRole(config->discord->roles->admin);
+					$admin->sendMessage(
 						"O teu cargo de administração foi removido. Se planeares estar presente nas próximas 24 horas, clica no Emoji.\n
 						Se clicares no Emoji e não estiveres presente, serás removido do cargo de administração permanentemente."
 					)->then(
-						function ($message) use ($member) {
-							$message->react("✅");
+						function ($message) use ($admin) {
+							$message->react("✅")->done(function () use ($message, $admin) {
+								// Collect the reaction from the admin
+								$collector = $message->createReactionCollector(function (MessageReaction $reaction) {
+									return $reaction->emoji->name == "✅";
+								}, [
+									"time" => 604800000,   // Wait a week for a response
+									"max"  => 1            // Only one reaction allowed
+								]);
 
-							$collector = $message->createReactionCollector(function ($reaction, $user) {
-								return true;
-							}, [
-								"time" => 604800000,   // Wait a week for a response
-								"max"  => 1            // Only one reaction allowed
-							]);
+								// If admin didn't react after a week, send a message to the admin channel and alert the admin that they were removed from the admin role
+								$collector->on("end", function ($reactions) use ($admin) {
+									if (count($reactions)) return; // admin reacted, don't do anything
 
-							// If member didn't react, send a message to the admin channel and alert the member that they were removed from the admin role
-							$collector->on("end", function ($reactions) use ($member) {
-								if (count($reactions)) return; // Member reacted, don't do anything
-
-								global $channel_admin;
-								$channel_admin->sendMessage("$member não respondeu ao pedido de presença passado uma semana. Foi removido permanentemente.");
-								$member->sendMessage("Não respondeste ao pedido de presença passado uma semana. Foste removido permanentemente do cargo de administração.")->then(function ($message) {
-									$message->delete(60);
-								});;
-							});
-
-							// If the user reacts, give them the admin role back
-							$collector->once("collect", function (MessageReaction $reaction, $user) use ($member) {
-								$member->addRole(config->discord->roles->admin);
-								$member->sendMessage("O teu cargo de administração foi restaurado.")->then(function ($message) {
-									$message->delete(60);
+									global $channel_admin;
+									$channel_admin->sendMessage("$admin não respondeu ao pedido de presença passado uma semana. Foi removido permanentemente.");
+									$admin->sendMessage("Não respondeste ao pedido de presença passado uma semana. Foste removido permanentemente do cargo de administração.");
+									// Remove Administrador or Moderador role if they have it
+									if ($admin->roles->has("1038206722969452644")) $admin->removeRole("1038206722969452644"); // Administrador
+									if ($admin->roles->has("1038205676503171132")) $admin->removeRole("1038205676503171132"); // Moderador
 								});
-								$reaction->message->delete(60); // Delete the original message after 60 seconds
+
+								// If the user reacts, give them the admin role back
+								$collector->once("collect", function (MessageReaction $reaction) use ($admin) {
+									$admin->addRole(config->discord->roles->admin);
+									$admin->sendMessage("O teu cargo de administração foi restaurado.")->then(function ($message) { $message->delete(60); });
+									$reaction->message->delete(60); // Delete the original message after 60 seconds
+								});
 							});
+						},
+						function ($error) use ($admin) {
+							global $channel_admin;
+							echo "Error: $error";
+							$channel_admin->sendMessage("Erro ao enviar mensagem de presença para $admin. $error");
 						}
 					);
 				}
-				$channel_admin->sendMessage("Todos os cargos de administração foram removidos.");
 
 				// Verify from the database who was last online over a week ago and remove them from the admin role if they were
 				$admins = $db->query("SELECT * FROM discord_members WHERE last_active < DATE_SUB(NOW(), INTERVAL 1 WEEK);");
@@ -312,7 +324,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 					$rollcall_message_id = $message->id;
 				});
 
-				
+
 
 				break;
 			default: // Send a random joke
@@ -456,7 +468,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 });
 
 $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, Discord $discord) {
-	if ($reaction->member->user->bot) return;
+	if ($reaction->user->bot) return;
 
 	global $channel_admin, $rollcall_message_id;
 
@@ -512,7 +524,7 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 			];
 
 			$channel_admin->sendMessage(sprintf($replies[rand(0, count($replies) - 1)] . ". :handshake:", $reaction->member));
-			
+
 			// Remove bot's reaction if there is more than 1 reaction
 			if (count($reaction->message->reactions) == 2) {
 				$reaction->message->deleteReaction(Message::REACT_DELETE_ME, $reaction->emoji); // Remove the bot's reaction
@@ -676,7 +688,7 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	// $channel_log_ingame->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game", "playing", $game->name, $game->state) : "está agora a jogar **$game->name**") . ($traidorfdp ? " @here" : NULL) : _U("game", "not_playing")));
 });
 
-$discord->listenCommand("adminactivity", function(Interaction $interaction) {
+$discord->listenCommand("adminactivity", function (Interaction $interaction) {
 	// Send a list of the time everyone with the admin role was last active, to the admin channel
 	$message_string = "**Última atividade da Equipa**:\n";
 	foreach (Admin::GetAdmins() as $admin) {
@@ -692,7 +704,7 @@ $discord->listenCommand("adminactivity", function(Interaction $interaction) {
 		// $message_string .= "**$admin_string**: $last_active $emoji\n";
 		$message_string .= "**$admin[username]**: $last_active $emoji\n";
 	}
-	
+
 	$interaction->respondWithMessage(MessageBuilder::new()->setContent($message_string), false);
 
 	return true;
