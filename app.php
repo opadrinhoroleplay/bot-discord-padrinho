@@ -115,10 +115,10 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 		// If the request was successful, get the amount of commits
 		if ($github) {
 			$commits = json_decode($github, true);
-			$version = sizeof($commits);
+			$version = substr($commits[0]["sha"], 0, 7);
 			$last_commit_message = $commits[0]["commit"]["message"];
 
-			$channel_admin->sendMessage("Iniciado com sucesso! **Versão: $version** `$last_commit_message`");
+			$channel_admin->sendMessage("Iniciado com sucesso. **Versão: $version** `$last_commit_message`");
 		}
 	}
 
@@ -159,7 +159,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 	TimeKeeping::hour(function ($hour) use ($channel_main, $channel_admin) {
 		// Check the status of FiveM every hour
 		FiveM::Status(function ($online) use ($channel_main) {
-			$channel_main->sendMessage($online ? "O FiveM está de volta! :partying_face:" : "O FiveM ficou offline! :sob:");
+			$channel_main->sendMessage($online ? "O FiveM está de volta! :smiley:" : "O FiveM está com algo problema! :weary:");
 		});
 
 		switch ($hour) {
@@ -172,8 +172,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 				while ($counter = $query->fetch_assoc()) $activity_counter[$counter["type"]] = $counter["count"];
 
 				// Resumir o dia
-				$activity_string = "**Desenvolvimento**:\n";
-
+				$activity_string = "\n**Desenvolvimento**:";
 				switch ($activity_counter["dev_messages"]) {
 					case 0:
 						$activity_string .= "- Nenhuma mensagem no canal desenvolvimento.";
@@ -185,8 +184,8 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 						$activity_string .= "- {$activity_counter["dev_messages"]} mensagens no canal de desenvolvimento.";
 						break;
 				}
-				$activity_string .= "**GitHub**:\n";
 
+				$activity_string .= "\n**GitHub**:";
 				switch ($activity_counter["github"]) {
 					case 0:
 						$activity_string .= "- Nenhum push de código.";
@@ -198,8 +197,8 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 						$activity_string .= "- {$activity_counter["github"]} pushes de código.";
 						break;
 				}
-				$activity_string .= "**Clickup**:\n";
 
+				$activity_string .= "\n**Clickup**:";
 				switch ($activity_counter["clickup"]) {
 					case 0:
 						$activity_string .= "- Nenhuma tarefa foi concluída.";
@@ -211,8 +210,8 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 						$activity_string .= "- {$activity_counter["clickup"]} tarefas concluídas hoje.";
 						break;
 				}
-				$activity_string .= "**Administração**:\n";
 
+				$activity_string .= "\n**Administração**:";
 				switch ($activity_counter["admin_messages"]) {
 					case 0:
 						$activity_string .= "- Nenhuma mensagem de administração.";
@@ -228,19 +227,22 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 				$channel_main->sendMessage("**Resumo do dia**:\n{$activity_string}");
 
 				// Init the counters for the next day
-				foreach ($activity_counter as $type) $GLOBALS["db"]->query("INSERT INTO discord_counters (type) VALUES ('$type');");
+				$db->query(
+					"INSERT INTO discord_counters (type) VALUES ('dev_messages');
+					INSERT INTO discord_counters (type) VALUES ('github');
+					INSERT INTO discord_counters (type) VALUES ('clickup');
+					INSERT INTO discord_counters (type) VALUES ('admin_messages');"
+				);
 
 				/* Admin Reset
 				Remove all admin roles from all members
 				Send them a private message checking if they are going to be present in the next 24 hours
 				If they are, give them the admin role back
 				*/
-				global $guild;
-				$admins = $guild->members->filter(function ($member) {
-					return $member->roles->has(config->discord->roles->admin);
-				});
+				/*global $guild;
 				$channel_admin->sendMessage("A efetuar reset de admins...");
-
+				
+				$admins = $guild->members->filter(function ($member) { return $member->roles->has(config->discord->roles->admin); });
 				foreach ($admins as $admin) {
 					// Don't remove owner
 					if ($admin->user->bot || $admin->id == config->discord->users->owner) continue;
@@ -277,7 +279,9 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 								// If the user reacts, give them the admin role back
 								$collector->once("collect", function (MessageReaction $reaction) use ($admin) {
 									$admin->addRole(config->discord->roles->admin);
-									$admin->sendMessage("O teu cargo de administração foi restaurado.")->then(function ($message) { $message->delete(60); });
+									$admin->sendMessage("O teu cargo de administração foi restaurado.")->then(function ($message) {
+										$message->delete(60);
+									});
 									$reaction->message->delete(60); // Delete the original message after 60 seconds
 								});
 							});
@@ -288,10 +292,10 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 							$channel_admin->sendMessage("Erro ao enviar mensagem de presença para $admin. $error");
 						}
 					);
-				}
+				} */
 
 				// Verify from the database who was last online over a week ago and remove them from the admin role if they were
-				$admins = $db->query("SELECT * FROM discord_members WHERE last_active < DATE_SUB(NOW(), INTERVAL 1 WEEK);");
+				/* $admins = $db->query("SELECT * FROM discord_members WHERE last_active < DATE_SUB(NOW(), INTERVAL 1 WEEK);");
 				$admins = $admins->fetch_all(MYSQLI_ASSOC);
 
 				if (count($admins)) {
@@ -305,7 +309,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 						$channel_admin->sendMessage("$member não esteve presente no servidor durante uma semana. Foi removido do cargo de administração.");
 						print("[MEMBER] $member->username#$member->discriminator was removed from the admin role because they were inactive for a week.\n");
 					}
-				}
+				} */
 
 				break;
 			case 8:
@@ -322,8 +326,6 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 
 					$rollcall_message_id = $message->id;
 				});
-
-
 
 				break;
 			default: // Send a random joke

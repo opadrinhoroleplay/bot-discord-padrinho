@@ -55,10 +55,10 @@ class DatabaseConnection {
 
         try {
             $result = $this->connection->query($query);
-            if (!$result) echo "[Database] Query failed: ({$this->connection->errno} {$this->connection->error})\n";
         } catch (Exception $e) {
             $error_message = $e->getMessage();
             print("[Database] Query failed ($error_message): $query\n");
+            return false;
         }
 
         return $result;
