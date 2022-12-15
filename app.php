@@ -329,21 +329,6 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 
 				break;
 			default: // Send a random joke
-				if (rand(1, 100) > 10) break;
-
-				$content = file_get_contents("https://evilinsult.com/generate_insult.php?lang=pt&type=json");
-				if ($content) { // Check if the request was successful
-					$result = json_decode($content);
-
-					if ($result) { // Check if the JSON was decoded successfully
-						// Convert html entities in $result->comment to utf-8
-						$result->comment = html_entity_decode($result->comment, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-						$channel_main->sendMessage("**$result->insult** - *$result->comment*")->done(function (Message $message) {
-							$message->react("😂");
-						});
-					} else print("Failed to decode JSON.");
-				} else print("Failed to get joke from evilinsult.com");
 
 				break;
 		}
@@ -970,7 +955,7 @@ function SetMemberIngame(Member $member, bool $toggle): bool
 		if ($member->getVoiceChannel() && !IsMemberAdmin($member)) $member->moveMember(config->discord->channels->voice->discussion, "Saiu do Servidor."); // Move member to the voice lobby if not in-game anymore
 	}
 
-	$channel_admin->sendMessage($member->username . ($toggle ? " entrou no servidor." : " saiu do servidor."));
+	$channel_admin->sendMessage("**$member->username**" . ($toggle ? " entrou no servidor." : " saiu do servidor."));
 
 	return true;
 }
