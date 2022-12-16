@@ -17,7 +17,8 @@ include("Trivia.php");
 include("AFK.php");
 include("BadWords.php");
 include("FiveM.php");
-include("Admin.class.php");
+include("Admin/Presence/Presence.php");
+include("Admin/Presence/Rollcall.php");
 
 // date_default_timezone_set('Europe/Lisbon');
 
@@ -56,7 +57,7 @@ $channel_log_traidores = (object) NULL;
 $channel_log_ingame    = (object) NULL;
 $channel_log_voice     = (object) NULL;
 $channel_log_afk       = (object) NULL;
-$rollcall_message_id   = null;
+$admin_presence		= (object) null;
 $trivia                = null;
 $invites_uses          = []; // Array of invites and their uses
 
@@ -79,7 +80,7 @@ $discord = new Discord([
 ]);
 
 $discord->on('ready', function (Discord $discord) use ($db) {
-	global $guild, $channel_main, $channel_admin, $channel_log_traidores, $channel_log_ingame, $channel_log_voice, $channel_log_afk;
+	global $guild, $channel_main, $channel_admin, $channel_log_ingame, $channel_log_voice, $channel_log_afk;
 
 	echo "Bot is ready!\n\n";
 
@@ -92,8 +93,9 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 	$channel_log_ingame    = $guild->channels->get("id", config->discord->channels->log->ingame);
 	$channel_log_voice     = $guild->channels->get("id", config->discord->channels->log->voice);
 
-
-
+	// Initiailize the Admin Presence class
+	$admin_presence = Admin\Presence::Init();
+	
 	include("Commands.php");
 
 	// Send startup message to the admin channel, with the bot's version. Only if the bot is not in debug mode
@@ -156,7 +158,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 		print("Done!\n\n");
 	});
 
-	TimeKeeping::hour(function ($hour) use ($channel_main, $channel_admin) {
+	TimeKeeping::hour(function ($hour) use ($db, $channel_main, $channel_admin) {
 		// Check the status of FiveM every hour
 		FiveM::Status(function ($online) use ($channel_main) {
 			$channel_main->sendMessage($online ? "O FiveM está de volta! :smiley:" : "O FiveM está com algo problema! :weary:");
@@ -171,161 +173,74 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 				$query = $db->query("SELECT type, count FROM discord_counters WHERE day = DATE(DATE_SUB(NOW(), INTERVAL 1 DAY));");
 				while ($counter = $query->fetch_assoc()) $activity_counter[$counter["type"]] = $counter["count"];
 
-				// Resumir o dia
-				$activity_string = "\n**Desenvolvimento**:";
-				switch ($activity_counter["dev_messages"]) {
-					case 0:
-						$activity_string .= "- Nenhuma mensagem no canal desenvolvimento.";
-						break;
-					case 1:
-						$activity_string .= "- Apenas uma mensagem no canal desenvolvimento.";
-						break;
-					default:
-						$activity_string .= "- {$activity_counter["dev_messages"]} mensagens no canal de desenvolvimento.";
-						break;
-				}
+				// Only send a message if there are any counts
+				if (count($activity_counter) > 0) {
+					// Resumir o dia
+					$activity_string = "\n**Canal de Desenvolvimento**:";
+					switch ($activity_counter["dev_messages"]) {
+						case 0:
+							$activity_string .= "Nenhuma mensagem";
+							break;
+						case 1:
+							$activity_string .= "Apenas uma mensagem";
+							break;
+						default:
+							$activity_string .= "{$activity_counter["dev_messages"]} mensagens";
+							break;
+					}
 
-				$activity_string .= "\n**GitHub**:";
-				switch ($activity_counter["github"]) {
-					case 0:
-						$activity_string .= "- Nenhum push de código.";
-						break;
-					case 1:
-						$activity_string .= "- Apenas um push de código.";
-						break;
-					default:
-						$activity_string .= "- {$activity_counter["github"]} pushes de código.";
-						break;
-				}
+					$activity_string .= "\n**GitHub**:";
+					switch ($activity_counter["github"]) {
+						case 0:
+							$activity_string .= "Nenhum push";
+							break;
+						case 1:
+							$activity_string .= "Apenas um push";
+							break;
+						default:
+							$activity_string .= "{$activity_counter["github"]} pushes";
+							break;
+					}
 
-				$activity_string .= "\n**Clickup**:";
-				switch ($activity_counter["clickup"]) {
-					case 0:
-						$activity_string .= "- Nenhuma tarefa foi concluída.";
-						break;
-					case 1:
-						$activity_string .= "- Apenas uma tarefa concluída.";
-						break;
-					default:
-						$activity_string .= "- {$activity_counter["clickup"]} tarefas concluídas hoje.";
-						break;
-				}
+					$activity_string .= "\n**Clickup**:";
+					switch ($activity_counter["clickup"]) {
+						case 0:
+							$activity_string .= "Nenhuma tarefa foi concluída.";
+							break;
+						case 1:
+							$activity_string .= "Apenas uma tarefa concluída.";
+							break;
+						default:
+							$activity_string .= "{$activity_counter["clickup"]} tarefas concluídas hoje.";
+							break;
+					}
 
-				$activity_string .= "\n**Administração**:";
-				switch ($activity_counter["admin_messages"]) {
-					case 0:
-						$activity_string .= "- Nenhuma mensagem de administração.";
-						break;
-					case 1:
-						$activity_string .= "- Uma mensagem de administração.";
-						break;
-					default:
-						$activity_string .= "- {$activity_counter["admin_messages"]} mensagens de administração enviadas.";
-						break;
-				}
+					$activity_string .= "\n**Administração**:";
+					switch ($activity_counter["admin_messages"]) {
+						case 0:
+							$activity_string .= "Nenhuma mensagem";
+							break;
+						case 1:
+							$activity_string .= "Uma mensagem";
+							break;
+						default:
+							$activity_string .= "{$activity_counter["admin_messages"]} mensagens";
+							break;
+					}
 
-				$channel_main->sendMessage("**Resumo do dia**:\n{$activity_string}");
+					$channel_main->sendMessage("**Resumo do dia**:\n{$activity_string}");
+				}
 
 				// Init the counters for the next day
-				$db->query(
-					"INSERT INTO discord_counters (type) VALUES ('dev_messages');
-					INSERT INTO discord_counters (type) VALUES ('github');
-					INSERT INTO discord_counters (type) VALUES ('clickup');
-					INSERT INTO discord_counters (type) VALUES ('admin_messages');"
-				);
-
-				/* Admin Reset
-				Remove all admin roles from all members
-				Send them a private message checking if they are going to be present in the next 24 hours
-				If they are, give them the admin role back
-				*/
-				/*global $guild;
-				$channel_admin->sendMessage("A efetuar reset de admins...");
-				
-				$admins = $guild->members->filter(function ($member) { return $member->roles->has(config->discord->roles->admin); });
-				foreach ($admins as $admin) {
-					// Don't remove owner
-					if ($admin->user->bot || $admin->id == config->discord->users->owner) continue;
-
-					print("Removing admin role from " . $admin->username . " (" . $admin->id . ")\n");
-
-					$admin->removeRole(config->discord->roles->admin);
-					$admin->sendMessage(
-						"O teu cargo de administração foi removido. Se planeares estar presente nas próximas 24 horas, clica no Emoji.\n
-						Se clicares no Emoji e não estiveres presente, serás removido do cargo de administração permanentemente."
-					)->then(
-						function ($message) use ($admin) {
-							$message->react("✅")->done(function () use ($message, $admin) {
-								// Collect the reaction from the admin
-								$collector = $message->createReactionCollector(function (MessageReaction $reaction) {
-									return $reaction->emoji->name == "✅";
-								}, [
-									"time" => 604800000,   // Wait a week for a response
-									"max"  => 1            // Only one reaction allowed
-								]);
-
-								// If admin didn't react after a week, send a message to the admin channel and alert the admin that they were removed from the admin role
-								$collector->on("end", function ($reactions) use ($admin) {
-									if (count($reactions)) return; // admin reacted, don't do anything
-
-									global $channel_admin;
-									$channel_admin->sendMessage("$admin não respondeu ao pedido de presença passado uma semana. Foi removido permanentemente.");
-									$admin->sendMessage("Não respondeste ao pedido de presença passado uma semana. Foste removido permanentemente do cargo de administração.");
-									// Remove Administrador or Moderador role if they have it
-									if ($admin->roles->has("1038206722969452644")) $admin->removeRole("1038206722969452644"); // Administrador
-									if ($admin->roles->has("1038205676503171132")) $admin->removeRole("1038205676503171132"); // Moderador
-								});
-
-								// If the user reacts, give them the admin role back
-								$collector->once("collect", function (MessageReaction $reaction) use ($admin) {
-									$admin->addRole(config->discord->roles->admin);
-									$admin->sendMessage("O teu cargo de administração foi restaurado.")->then(function ($message) {
-										$message->delete(60);
-									});
-									$reaction->message->delete(60); // Delete the original message after 60 seconds
-								});
-							});
-						},
-						function ($error) use ($admin) {
-							global $channel_admin;
-							echo "Error: $error";
-							$channel_admin->sendMessage("Erro ao enviar mensagem de presença para $admin. $error");
-						}
-					);
-				} */
-
-				// Verify from the database who was last online over a week ago and remove them from the admin role if they were
-				/* $admins = $db->query("SELECT * FROM discord_members WHERE last_active < DATE_SUB(NOW(), INTERVAL 1 WEEK);");
-				$admins = $admins->fetch_all(MYSQLI_ASSOC);
-
-				if (count($admins)) {
-					$channel_admin->sendMessage("A remover cargos de administração de utilizadores que não estiveram ativos há mais de uma semana...");
-					foreach ($admins as $admin) {
-						$member = $guild->members->get("id", $admin["id"]);
-						if (!$member) continue; // Member left the server
-
-						$member->removeRole(config->discord->roles->admin);
-						$member->sendMessage("Não estiveste presente no servidor durante uma semana. Foste removido do cargo de administração.");
-						$channel_admin->sendMessage("$member não esteve presente no servidor durante uma semana. Foi removido do cargo de administração.");
-						print("[MEMBER] $member->username#$member->discriminator was removed from the admin role because they were inactive for a week.\n");
-					}
-				} */
+				// * Tried doing this in a single query but it didn't work for some reason
+				$db->query("INSERT INTO discord_counters (type) VALUES ('dev_messages')");
+				$db->query("INSERT INTO discord_counters (type) VALUES ('github');");
+				$db->query("INSERT INTO discord_counters (type) VALUES ('clickup');");
+				$db->query("INSERT INTO discord_counters (type) VALUES ('admin_messages');");
 
 				break;
 			case 8:
-				global $guild;
-				// Remove config->discord->roles->present from everyone that has the config->discord->roles->admin role
-				foreach ($guild->roles->get("id", config->discord->roles->admin)->members as $member) $member->removeRole(config->discord->roles->present);
-
-				$channel_main->sendMessage("Bom dia pessoal! :partying_face:");
-				$channel_admin->sendMessage("<@&929172055977508924> São agora 8 da manhã seus cabrões. Toca a acordar!\nQuem é que vai marcar presença hoje?")->done(function (Message $message) {
-					global $rollcall_message_id;
-
-					$message->react("👍");
-					$message->react("👎");
-
-					$rollcall_message_id = $message->id;
-				});
+				$admin_presence = Admin\Presence::Rollcall();
 
 				break;
 			default: // Send a random joke
@@ -456,8 +371,6 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, Discord $discord) {
 	if ($reaction->user->bot) return;
 
-	global $channel_admin, $rollcall_message_id;
-
 	// Check if the reaction was on a greeting message from the bot and if the user reacted with the 👋 emoji, then send a message to the channel
 	// ! Fuck this shit. Doesn't work. I'm not going to waste more time on this.
 	if ($reaction->emoji->name == "👋" && $reaction->channel->id == config->discord->channels->main && $reaction->user->bot) {
@@ -465,67 +378,13 @@ $discord->on(Event::MESSAGE_REACTION_ADD, function (MessageReaction $reaction, D
 
 		$reaction->channel->sendMessage("{$reaction->user} dá-te as boas-vindas $mentioned_member! :wave:");
 	}
+});
 
-	// Check if the reaction was on the rollcall message and if the member reacted with the correct emojis or not
-	if ($reaction->message_id == $rollcall_message_id) {
-		if ($reaction->emoji->name == "👍") { // If the reaction is a thumbs up
-			$replies = [
-				"%s ok ok, vou querer ver trabalho então",
-				"Fantástico %s! Espero ver trabalho feito daqui a umas horas",
-				"Vai lá %s, não te esqueças de fazer o trabalho",
-				"%s, não te esqueças de marcar presença no ClickUp!",
-				"Vai lá %s, que eu sei que consegues!",
-				"%s ok ok, vamos lá ver se não te vais embora",
-				"%s ok ok, não me quero queixar de nada",
-				"Obrigado %s, agora é que é!",
-				"Certo %s, fala aí com o resto do pessoal para ver quais são as tarefas para hoje",
-				"Vou querer ver trabalho %s",
-				"Porra, %s, que bom ver-te por aqui",
-				"Queres mesmo trabalhar %s? 😳",
-				"Trabalho, trabalho, trabalho... %s",
-				"Vamos lá %s, não te quero ver a dormir",
-				"Vou querer ver trabalho %s, mas não te esqueças de descansar também!",
-				"Quem é que vai marcar presença hoje? %s",
-				"O que é que o %s vai fazer hoje? 🤔",
-				"Já estás atrasado %s. Vai-te foder",
-				"Trabalho feito %s? Espero que sim!",
-				"Boa %s, agora é trabalhar",
-				"Vai-te foder %s.",
-				"Já estás atrasado %s",
-				"%s está presente!",
-				"O %s está presente!",
-				"Ó %s, calma lá, não te esqueças de comer",
-				"Ó %s, não te esqueças de beber água",
-				"Ó %s, não te esqueças de ir à casa de banho",
-				"Ó %s, não te esqueças de respirar",
-				"Ó %s, não te esqueças de dormir",
-				"Ó %s, não te esqueças de beber café",
-				"Ó %s, não te esqueças de fazer exercício",
-				"Ok %s, vamos a isso então! Toca a mostrar trabalho",
-				"Tranquilo %s, vamos lá meter mãos a obra",
-				"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa",
-				"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito",
-				"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito e que não seja só copiar e colar",
-				"Ok %s, vamos lá ver se hoje é o dia em que vais fazer alguma coisa de jeito e que não seja só copiar e colar de um site qualquer"
-			];
-
-			$channel_admin->sendMessage(sprintf($replies[rand(0, count($replies) - 1)] . ". :handshake:", $reaction->member));
-
-			// Remove bot's reaction if there is more than 1 reaction
-			if (count($reaction->message->reactions) == 2) {
-				$reaction->message->deleteReaction(Message::REACT_DELETE_ME, $reaction->emoji); // Remove the bot's reaction
-			}
-		} elseif ($reaction->emoji->name == "👎") { // If the user reacted with a thumbs down
-			$channel_admin->sendMessage("Tranquilo {$reaction->member}, vemos-te amanhã então. :wave:");
-			// Remove bot's reaction if there is more than 1 reaction
-			if (count($reaction->message->reactions) == 2) {
-				$reaction->message->deleteReaction(Message::REACT_DELETE_ME, $reaction->emoji); // Remove the bot's reaction
-			}
-		} else { // If the reaction is not 👍 or 👎
-			$reaction->delete()->done(function () use ($channel_admin, $reaction) {
-				$channel_admin->sendMessage("$reaction->member para quieto fdp. Estás-te a armar quê? Push, queres é festa.");
-			});
-		}
+$discord->on(Event::MESSAGE_REACTION_REMOVE_EMOJI, function (MessageReaction $reaction, Discord $discord) use ($admin_presence){
+	print("Emoji removed from message {$reaction->message->id} by {$reaction->user->username}#{$reaction->user->discriminator}.\n");
+    // If this is our Rollcall message then add the emoji back to the message
+	if ($reaction->message->id == $admin_presence->message->id) {
+		$reaction->message->react($reaction->emoji);
 	}
 });
 
@@ -694,22 +553,6 @@ $discord->listenCommand("adminactivity", function (Interaction $interaction) {
 	$interaction->respondWithMessage(MessageBuilder::new()->setContent($message_string), false);
 
 	return true;
-});
-
-$discord->listenCommand("rollcall", function (Interaction $interaction) use (&$rollcall_message_id) {
-	if ($rollcall_message_id) return;
-
-	global $channel_admin;
-
-	$channel_admin->sendMessage("<@&929172055977508924> Como é meus meninos?! Quem é que vai marcar presença hoje?")->done(function (Message $message) use (&$rollcall_message_id) {
-		$message->react("👍");
-		$message->react("👎");
-
-		$rollcall_message_id = $message->id;
-	});
-
-	$interaction->acknowledgeWithResponse();
-	$interaction->deleteOriginalResponse();
 });
 
 $discord->listenCommand('convite', function (Interaction $interaction) {
