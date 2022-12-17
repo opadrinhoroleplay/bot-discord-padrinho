@@ -41,42 +41,53 @@ class RollcallMessage
         
         // If a rollcall message was already sent today, load it to create the object
         if ($rollcall) {
+            print("[ROLLCALL] Rollcall data was passed. Decoding JSON...\n");
             $rollcall = json_decode($rollcall, false); // It's JSON, so decode it
 
             if($rollcall?->message_id) {
-                // Get the Message object from the message ID
-                $this->admin_channel->messages->fetch($rollcall->message_id)->done(function (Message $message) {
-                    print("[ROLLCALL] Loaded rollcall message from database\n");
-                    $this->message = $message;
-                    $this->reactions = $message->reactions;
+                print("[ROLLCALL] Rollcall message ID was passed. Fetching message...\n");
 
-                    // Add any missing reactions
+                // Get the Message object from the message ID
+                $this->admin_channel->messages->fetch($rollcall->message_id)->done(function (Message $message) use ($rollcall) {
+                    print("[ROLLCALL] Retrieved the Message object. Loading presences...\n");
+                    $this->message = $message;
+                    $this->presences = (array) $rollcall->presences; // We only load the presences from the database if the message was found
+
+                    // Add any missing reactions, in case someone tried being funny and removed them
                     foreach (RollcallPresence::getValues() as $presence_reaction) {
                         if (!$this->message->reactions->has($presence_reaction)) $this->message->react($presence_reaction);
                     }
-                    
-                    // Sync the current message reactions with the database, just in case the bot was offline
-                    // * Doesn't work fuck this
-                    /* foreach ($this->message->reactions as $reaction) {
-                        print("[ROLLCALL] Syncing reaction {$reaction->emoji->name} with database\n");
-                        print("[ROLLCALL] Reaction count: {$reaction->count}\n");
 
-                        print_r($reaction);
-                        
-                        
-                        // Ignore the bot's presences
-                        if ($reaction->me) continue;
+                    // Sync the current message reactions with the database, just in case the bot was offline
+                    foreach ($this->message->reactions as $reaction) {
                         // Ignore reactions that are not the ones in RollcallPresence
                         if (!in_array($reaction->emoji->name, RollcallPresence::getValues())) continue;
-                        // Ignore if member already reacted with something else
-                        if (isset($this->presences[$reaction->member?->user->id])) continue;
-                        
-                        // Add the user to the array
-                        // We get the constant name from the enum value just because it's easier to read
-                        $reaction = RollcallPresence::coerce($reaction->emoji->name);
-                        print($reaction);
-                        $this->presences[$reaction->member->user->id] = $reaction;
-                    } */
+
+                        $presence_constant = RollcallPresence::coerce($reaction->emoji->name)->name;
+
+                        $reaction->getAllUsers()->done(function ($users) use ($presence_constant, $reaction) {
+                            foreach ($users as $user) {
+                                // Ignore the bot's presences
+                                if ($user->bot) {
+                                    // Delete the bot's reaction if other users reacted to it
+                                    if (count($users) > 1) {
+                                        $reaction->message->deleteReaction(Message::REACT_DELETE_ME, $reaction->emoji->name);
+                                        print("[ROLLCALL] Deleted bot's reaction {$reaction->emoji->name} from {$reaction->message->id}\n");
+                                    }
+                                    continue;
+                                }
+
+                                // Check if this reaction is the same to what we have in the database
+                                if (isset($this->presences[$user->id]) && $this->presences[$user->id] == $presence_constant) continue;
+
+                                $this->presences[$user->id] = $presence_constant; // Update the presence in the database, since it's different from what we have
+
+                                print("[ROLLCALL] Synced {$user->username}#{$user->discriminator} ({$user->id}) with {$presence_constant}\n");
+
+                                $this->_save(); // Save the new presence to the database
+                            }
+                        });
+                    }
 
                     // Create the reaction collector
                     $this->_createReactionCollector();
@@ -85,6 +96,32 @@ class RollcallMessage
                     print("[ROLLCALL] Couldn't find rollcall message in database, sending a new one\n");
                     $this->_sendMessage();
                 });
+
+                // Send a message to the channel with who is present
+                /* $message = "```diff\n";
+                foreach ($this->presences as $member_id => $presence) {
+                    print("[ROLLCALL] Loading {$member_id}...\n");
+                    $member = $GLOBALS["guild"]->members->get("id", $member_id); // Get the Member object from the user ID
+                    if (!$member) continue; // If the user isn't in the guild, skip them
+
+                    $presence = RollcallPresence::coerce($presence);
+                    print("[ROLLCALL] {$member->username}#{$member->discriminator} ({$member->id}) is {$presence->name}\n");
+
+                    switch ($presence) {
+                        case RollcallPresence::Yes:
+                            $message .= "+ {$member->username}#{$member->discriminator}\n";
+                            break;
+                        case RollcallPresence::No:
+                            $message .= "- {$member->username}#{$member->discriminator}\n";
+                            break;
+                        case RollcallPresence::Maybe:
+                            $message .= "~ {$member->username}#{$member->discriminator}\n";
+                            break;
+                    }
+                }
+                $message .= "```";
+
+                $this->admin_channel->sendMessage($message); */
             } else {
                 // No message ID was passed, so we need to send a new one
                 print("[ROLLCALL] No message ID was passed, sending a new one\n");
@@ -183,6 +220,8 @@ class RollcallMessage
 
     private function _createReactionCollector()
     {
+        print("Creating reaction collector for message '{$this->message->id}'\n");
+
         // Collect every reaction and store it in an array
         $this->message->createReactionCollector(function (MessageReaction $reaction) {
             // Ignore the bot's presences
