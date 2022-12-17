@@ -306,21 +306,20 @@ $discord->on(Event::INVITE_CREATE, function (Invite $invite, Discord $discord) {
 $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord) {
 	global $db, $channel_admin;
 
-	// With this it doesn't matter if it was a bot or not
-	// Get the channel the message was sent in, so we can increment the activity counter for that channel
-	$counter_type = NULL;
+	$channels = config->discord->channels;
 
+	// Check if the message was sent in one of the channels we want to track
 	switch ($message->channel_id) {
-		case !$message->author->bot && config->discord->channels->desenvolvimento:
-			$counter_type = "dev_messages";
+		case $channels->desenvolvimento:
+			if(!$message->author->bot) $counter_type = "dev_messages";
 			break;
-		case !$message->author->bot && config->discord->channels->admin:
-			$counter_type = "admin_messages";
+		case $channels->admin:
+			if(!$message->author->bot) $counter_type = "admin_messages";
 			break;
-		case config->discord->channels->clickup:
+		case $channels->clickup:
 			$counter_type = "clickup";
 			break;
-		case config->discord->channels->github:
+		case $channels->github:
 			$counter_type = "github";
 			break;
 	}
