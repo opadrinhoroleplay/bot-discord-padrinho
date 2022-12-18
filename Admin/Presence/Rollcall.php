@@ -63,9 +63,9 @@ class RollcallMessage
                         // Ignore reactions that are not the ones in RollcallPresence
                         if (!in_array($reaction->emoji->name, RollcallPresence::getValues())) continue;
 
-                        $presence_constant = RollcallPresence::coerce($reaction->emoji->name)->name;
-
-                        $reaction->getAllUsers()->done(function ($users) use ($presence_constant, $reaction) {
+                        $presence = RollcallPresence::coerce($reaction->emoji->name);
+                        
+                        $reaction->getAllUsers()->done(function ($users) use ($presence, $reaction) {
                             foreach ($users as $user) {
                                 // Ignore the bot's presences
                                 if ($user->bot) {
@@ -77,12 +77,16 @@ class RollcallMessage
                                     continue;
                                 }
 
+                                $presence_constant = $presence->name;
+
                                 // Check if this reaction is the same to what we have in the database
                                 if (isset($this->presences[$user->id]) && $this->presences[$user->id] == $presence_constant) continue;
 
                                 $this->presences[$user->id] = $presence_constant; // Update the presence in the database, since it's different from what we have
 
                                 print("[ROLLCALL] Synced {$user->username}#{$user->discriminator} ({$user->id}) with {$presence_constant}\n");
+
+                                $this->_reply($user, $presence); // Reply to the user with their new presence
 
                                 $this->_save(); // Save the new presence to the database
                             }
@@ -147,7 +151,7 @@ class RollcallMessage
         });
     }
 
-    private function _reply(RollcallPresence $presence, Member $member) {
+    private function _reply(Member $member, RollcallPresence $presence) {
         $replies = [
             RollcallPresence::Yes->name => [
                 "%s ok ok, vou querer ver trabalho então",
@@ -249,7 +253,7 @@ class RollcallMessage
 
             $this->_save();
 
-            $this->_reply($presence, $reaction->member);
+            $this->_reply($reaction->member, $presence);
 
             // If we got here, the reaction is valid
             return true;
