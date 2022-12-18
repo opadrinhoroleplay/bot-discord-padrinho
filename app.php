@@ -325,7 +325,7 @@ $discord->on(Event::MESSAGE_CREATE, function (Message $message, Discord $discord
 	}
 
 	// If the channel is one of the ones we want to track, then increment the counter
-	if ($counter_type) $db->query("UPDATE discord_counters SET count = count + 1 WHERE type = '$counter_type' AND day = DATE(NOW());");
+	if (isset($counter_type)) $db->query("UPDATE discord_counters SET count = count + 1 WHERE type = '$counter_type' AND day = DATE(NOW());");
 
 	// Ignore messages from bots
 	if (!$message->author->bot) {
@@ -532,7 +532,7 @@ $discord->on(Event::PRESENCE_UPDATE, function (PresenceUpdate $presence, Discord
 	// $channel_log_ingame->sendMessage("**{$member->username}** " . ($game ? ($game->state ? _U("game", "playing", $game->name, $game->state) : "está agora a jogar **$game->name**") . ($traidorfdp ? " @here" : NULL) : _U("game", "not_playing")));
 });
 
-$discord->listenCommand("adminactivity", function (Interaction $interaction) {
+/* $discord->listenCommand("adminactivity", function (Interaction $interaction) {
 	// Send a list of the time everyone with the admin role was last active, to the admin channel
 	$message_string = "**Última atividade da Equipa**:\n";
 	foreach (Admin::GetAdmins() as $admin) {
@@ -552,7 +552,7 @@ $discord->listenCommand("adminactivity", function (Interaction $interaction) {
 	$interaction->respondWithMessage(MessageBuilder::new()->setContent($message_string), false);
 
 	return true;
-});
+}); */
 
 $discord->listenCommand('convite', function (Interaction $interaction) {
 	global $db;
