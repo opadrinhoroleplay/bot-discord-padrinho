@@ -84,11 +84,11 @@ class RollcallMessage
 
                                 $this->presences[$user->id] = $presence_constant; // Update the presence in the database, since it's different from what we have
 
-                                print("[ROLLCALL] Synced {$user->username}#{$user->discriminator} ({$user->id}) with {$presence_constant}\n");
-
+                                $this->_save(function() use ($user) { print("Saving because {$user->username}#{$user->discriminator} reacted."); }); // Save the new presence to the database
+                                
                                 $this->_reply($user, $presence); // Reply to the user with their new presence
-
-                                $this->_save(); // Save the new presence to the database
+                                
+                                print("[ROLLCALL] Synced {$user->username}#{$user->discriminator} ({$user->id}) with {$presence_constant}\n");
                             }
                         });
                     }
@@ -232,8 +232,6 @@ class RollcallMessage
 
         print("Creating reaction collector for message '{$this->message->id}'...\n");
 
-        $time_remaining = strtotime("tomorrow") - time();
-
         // Collect every reaction and store it in an array
         $this->message->createReactionCollector(function (MessageReaction $reaction) {
             // Ignore the bot's presences
@@ -267,7 +265,7 @@ class RollcallMessage
             return true;
         }, [
             // Collect presences from the time this message was sent until the end of the day
-            "time" => $time_remaining
+            "time" => (strtotime("tomorrow") - time()) * 1000 // Convert to milliseconds
         ])->then(function () {
             print("Reaction collector for message '{$this->message->id}' finished.\n");
             // Send a message to the admin channel
@@ -275,16 +273,19 @@ class RollcallMessage
         });
     }
 
-    private function _save()
+    private function _save(callable $callback = null)
     {
+        
         print("[ROLLCALL] Saving rollcall data to database\n");
-
+        
         $value = json_encode([
             "message_id" => $this->message->id,
             "presences"  => $this->presences
         ]);
-
+        
         // Save the message ID and the presences to the database
         $GLOBALS["db"]->query("UPDATE discord_settings SET value = '$value', last_updated = NOW() WHERE name = 'rollcall'");
+
+        if ($callback) $callback();
     }
 }
