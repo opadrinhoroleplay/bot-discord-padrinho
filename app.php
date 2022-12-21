@@ -176,7 +176,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 				// Only send a message if there are any counts
 				if (count($activity_counter) > 0) {
 					// Resumir o dia
-					$activity_string = "\n**Canal de Desenvolvimento**:";
+					$activity_string = "\n**Canal de Desenvolvimento**: ";
 					switch ($activity_counter["dev_messages"]) {
 						case 0:
 							$activity_string .= "Nenhuma mensagem";
@@ -189,7 +189,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 							break;
 					}
 
-					$activity_string .= "\n**GitHub**:";
+					$activity_string .= ".\n**GitHub**: ";
 					switch ($activity_counter["github"]) {
 						case 0:
 							$activity_string .= "Nenhum push";
@@ -202,20 +202,20 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 							break;
 					}
 
-					$activity_string .= "\n**Clickup**:";
+					$activity_string .= ".\n**Clickup**: ";
 					switch ($activity_counter["clickup"]) {
 						case 0:
-							$activity_string .= "Nenhuma tarefa foi concluída.";
+							$activity_string .= "Nenhuma tarefa foi concluída";
 							break;
 						case 1:
-							$activity_string .= "Apenas uma tarefa concluída.";
+							$activity_string .= "Apenas uma tarefa concluída";
 							break;
 						default:
-							$activity_string .= "{$activity_counter["clickup"]} tarefas concluídas hoje.";
+							$activity_string .= "{$activity_counter["clickup"]} tarefas concluídas";
 							break;
 					}
 
-					$activity_string .= "\n**Administração**:";
+					$activity_string .= ".\n**Administração**: ";
 					switch ($activity_counter["admin_messages"]) {
 						case 0:
 							$activity_string .= "Nenhuma mensagem";
