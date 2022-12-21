@@ -99,7 +99,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 	include("Commands.php");
 
 	// Send startup message to the admin channel, with the bot's version. Only if the bot is not in debug mode
-	if (!DEBUG) {
+	/* if (!DEBUG) {
 		// Get the bot version from the amount of commits on GitHub
 		$ch = curl_init();
 		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Don't verify SSL certificate
@@ -122,7 +122,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 
 			$channel_admin->sendMessage("Iniciado com sucesso. **Versão: $version** `$last_commit_message`");
 		}
-	}
+	} */
 
 	// Loop through all the invites, get their uses and build the $invites_uses array
 	// TODO: Manage invites being active or not
