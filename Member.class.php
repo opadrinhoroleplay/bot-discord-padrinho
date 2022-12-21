@@ -29,7 +29,7 @@ class Member {
         return $query;
     }
 
-    static function SetLastOnline(DiscordMember $member) {
+    static function SetLastOnline(DiscordMember $member): bool {
         $member_exists = self::Exists($member);
 
         // Create member if it doesn't exist
@@ -37,14 +37,11 @@ class Member {
 
         // If the member exists or was created, update the last online time
         if($member_exists || $member_created) {
-            $query = $GLOBALS["db"]->query("UPDATE discord_members SET last_online = NOW() WHERE id = '{$member->id}';");
-            if($query) print("[MEMBER] Updated last online for {$member->username} ({$member->id})\n"); else print("[MEMBER] Failed to update last online for {$member->username} ({$member->id})\n");
-
-            return $query;
+            return $GLOBALS["db"]->query("UPDATE discord_members SET last_online = NOW() WHERE id = '{$member->id}';");
         }
     }
 
-    static function SetLastActive(DiscordMember $member) {
+    static function SetLastActive(DiscordMember $member): bool {
         $member_exists = self::Exists($member);
 
         // Create member if it doesn't exist
@@ -52,10 +49,7 @@ class Member {
 
         // If the member exists or was created, update the last active time
         if($member_exists || $member_created) {
-            $query = $GLOBALS["db"]->query("UPDATE discord_members SET last_active = NOW() WHERE id = '{$member->id}';");
-            if($query) print("[MEMBER] Updated last active for {$member->username} ({$member->id})\n"); else print("[MEMBER] Failed to update last active for {$member->username} ({$member->id})\n");
-
-            return $query;
+            return $GLOBALS["db"]->query("UPDATE discord_members SET last_active = NOW() WHERE id = '{$member->id}';");
         }
     }
 
