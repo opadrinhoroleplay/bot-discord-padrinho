@@ -224,7 +224,15 @@ class RollcallMessage
 
     private function _createReactionCollector()
     {
-        print("Creating reaction collector for message '{$this->message->id}'\n");
+        // Confirm that the message variable contains a valid Message object
+        if (!($this->message instanceof Message)) {
+            $this->admin_channel->sendMessage("Nao consegui criar o reaction collector.");
+            return;
+        }
+
+        print("Creating reaction collector for message '{$this->message->id}'...\n");
+
+        $time_remaining = strtotime("tomorrow") - time();
 
         // Collect every reaction and store it in an array
         $this->message->createReactionCollector(function (MessageReaction $reaction) {
@@ -249,7 +257,7 @@ class RollcallMessage
             $presence = RollcallPresence::coerce($reaction->emoji->name);
 
             // Add the user to the array
-            $this->presences[$reaction->member->user->id] = $presence;
+            $this->presences[$reaction->member->user->id] = $presence->name;
 
             $this->_save();
 
@@ -259,8 +267,12 @@ class RollcallMessage
             return true;
         }, [
             // Collect presences from the time this message was sent until the end of the day
-            "time" => strtotime("tomorrow") - time()
-        ]);
+            "time" => $time_remaining
+        ])->then(function () {
+            print("Reaction collector for message '{$this->message->id}' finished.\n");
+            // Send a message to the admin channel
+            $this->admin_channel->sendMessage("Rollcall finished. {$this->message->id}\n" . json_encode($this->presences, JSON_PRETTY_PRINT));
+        });
     }
 
     private function _save()
