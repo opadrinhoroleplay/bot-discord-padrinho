@@ -142,17 +142,18 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 			// Send a message to the invite creator to let them know and get in contact with VIRUXE
 			if ($db_invite_uses < $invite->uses) {
 				print("Invite {'$invite->code}' has '{$invite->uses}' uses, but the database says it has {$db_invite_uses} uses\n");
-				$channel_admin->sendMessage("O número de convites usados para o convite **{$invite->code}** está diferente do que está na base de dados! ({$invite->uses} vs {$db_invite_uses})");
+				// $channel_admin->sendMessage("O número de convites usados para o convite **{$invite->code}** está diferente do que está na base de dados! ({$invite->uses} vs {$db_invite_uses})");
 
+				// * If there's a difference, send a message to the invite creator to let them know and get in contact with me
 				// Get the invite creator's member id from database using their invite code
-				$query = $db->query("SELECT inviter_id FROM invites WHERE code = '{$invite->code}';");
+				/* $query      = $db->query("SELECT inviter_id FROM invites WHERE code = '{$invite->code}';");
 				$inviter_id = $query->fetch_column();
 
 				if ($inviter_id) {
 					// Get the invite creator's member object
 					$inviter = $guild->members->get("id", $inviter_id);
 					$inviter->sendMessage("O número de entradas para o teu convite está diferente do que está registado na base de dados. Por favor, contacta o <@{config->discord->users->owner}> para resolver isto.");
-				}
+				} */
 			}
 		}
 		print("Done!\n\n");

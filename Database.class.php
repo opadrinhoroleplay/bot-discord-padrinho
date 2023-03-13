@@ -22,8 +22,8 @@ class DatabaseConnection {
             $this->connection = new mysqli($this->hostname, $this->username, $this->password, $this->database);
         } catch (Exception $e) {
             if ($this->connection_tries < 3) {
-                print("Failed: $e->getMessage()\n");
                 $this->connection_tries++;
+                print("Failed. Retrying...\n");
                 $this->connect();
             } else {
                 die("Failed. Exiting.");
