@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 // Get environment debug setting
@@ -47,7 +46,7 @@ use Utils\Words;
 
 print("Loading Fredo...\n\n");
 
-$db = new DatabaseConnection("p:" . config->database->host, config->database->user, config->database->pass, config->database->database);
+$db = new DatabaseConnection("p:" . config->database->hostname, config->database->username, config->database->password, config->database->name);
 
 $start_time            = new DateTime();
 $guild                 = (object) NULL;
@@ -127,7 +126,7 @@ $discord->on('ready', function (Discord $discord) use ($db) {
 	// Loop through all the invites, get their uses and build the $invites_uses array
 	// TODO: Manage invites being active or not
 	print("Checking invites...\n");
-	$guild->invites->freshen()->done(function (Collection $invites) use ($discord, $db, $guild, $channel_admin) {
+	$guild->invites->freshen()->then(function (Collection $invites) use ($discord, $db, $guild, $channel_admin) {
 		foreach ($invites as $invite) {
 			if ($invite->inviter->id != $discord->id) continue; // Only get invites created by our bot
 
@@ -391,8 +390,7 @@ $discord->on(Event::MESSAGE_REACTION_REMOVE_EMOJI, function (MessageReaction $re
 $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Discord $discord) {
 	switch ($interaction->type) {
 		case InteractionType::PING:
-			$interaction->acknowledge()->done(function () use ($interaction) {
-				// $interaction->reply("Pong!");
+			$interaction->acknowledge()->then(function () use ($interaction) {
 				print("Pong!\n");
 			});
 			break;
@@ -448,7 +446,7 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 										. "Sugestão feita por $author:\n>>> {$components["message"]->value}"
 								),
 								"applied_tags" => ["1031013313594802237"]
-							])->done(function (Thread $thread) use ($interaction) {
+							])->then(function (Thread $thread) use ($interaction) {
 								print("Suggestion '$thread->name' created successfully.\n");
 								$interaction->respondWithMessage(MessageBuilder::new()->setContent("Tópico de Sugestão $thread criado com sucesso."), true);
 							});
@@ -459,17 +457,17 @@ $discord->on(Event::INTERACTION_CREATE, function (Interaction $interaction, Disc
 
 			break;
 		case InteractionType::MESSAGE_COMPONENT:
-			$interaction->acknowledge()->done(function () use ($interaction) {
+			$interaction->acknowledge()->then(function () use ($interaction) {
 				print("Message component received!\n");
 			});
 			break;
 		case InteractionType::APPLICATION_COMMAND_AUTOCOMPLETE:
-			$interaction->acknowledge()->done(function () use ($interaction) {
+			$interaction->acknowledge()->then(function () use ($interaction) {
 				print("Autocomplete received!\n");
 			});
 			break;
 		case InteractionType::MODAL_SUBMIT:
-			$interaction->acknowledge()->done(function () use ($interaction) {
+			$interaction->acknowledge()->then(function () use ($interaction) {
 				print("Modal submit received!\n");
 			});
 			break;
@@ -739,7 +737,7 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 		]);
 
 		// Submit the part
-		$interaction->guild->channels->save($new_channel, "Canal de Voz para '$member->username'")->done(
+		$interaction->guild->channels->save($new_channel, "Canal de Voz para '$member->username'")->then(
 			function (Channel $channel) use ($interaction, $member, $channel_members) {
 				global $channel_admin;
 
@@ -758,7 +756,8 @@ $discord->listenCommand('voz', function (Interaction $interaction) {
 				print("'$member->username'\n");
 				if ($member->getVoiceChannel()) $member->moveMember($channel->id); // Move the Member who executed the command.
 				$interaction->respondWithMessage(MessageBuilder::new()->setContent("Criei o Canal $channel para ti e para os teus amigos."), true);
-			},
+			}
+		)->catch(
 			function ($error) {
 				print("Impossivel criar canal privado.\n$error\n");
 			}
