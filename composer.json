@@ -1,7 +1,0 @@
-{
-    "require": {
-        "team-reflex/discord-php": "dev-master",
-        "chillerlan/php-dotenv": "^2.1",
-        "react/event-loop": "1.3"
-    }
-}
