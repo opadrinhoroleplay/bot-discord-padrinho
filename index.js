@@ -32,6 +32,10 @@ client.startTime = new Date();
 // Load handlers
 ['events', 'commands', 'database'].forEach(handler => require(`${path.join(__dirname, 'handlers')}/${handler}`)(client));
 
+// Initialize docs responder
+const { setup: setupDocsResponder } = require('./docsResponder');
+setupDocsResponder(client);
+
 // Error handling
 process.on('unhandledRejection', error => console.error('Unhandled promise rejection:', error));
 
