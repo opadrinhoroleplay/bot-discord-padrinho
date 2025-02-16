@@ -1,6 +1,6 @@
 const mysql = require('mysql2/promise');
 
-module.exports = async (client) => {
+module.exports = async client => {
     try {
         const connection = await mysql.createConnection({
             host: client.config.database.host,

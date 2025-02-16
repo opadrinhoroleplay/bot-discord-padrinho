@@ -2,8 +2,8 @@ exports.config = {
     discord: {
         guild: process.env.GUILD_ID,
         channels: {
-            admin: process.env.DISCORD_CHANNEL_ADMIN,
             main: process.env.DISCORD_CHANNEL_MAIN,
+            staff: process.env.DISCORD_CHANNEL_STAFF,
             desenvolvimento: process.env.DISCORD_CHANNEL_DEV,
             clickup: process.env.DISCORD_CHANNEL_CLICKUP,
             github: process.env.DISCORD_CHANNEL_GITHUB,

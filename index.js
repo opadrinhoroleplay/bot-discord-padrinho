@@ -41,4 +41,4 @@ process.on('unhandledRejection', error => console.error('Unhandled promise rejec
 
 client.on('error', error => console.error('Discord client error:', error));
 
-client.login(process.env.DISCORD_TOKEN); 
+client.login(client.config.DISCORD_TOKEN); 

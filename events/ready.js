@@ -5,22 +5,24 @@ module.exports = {
     name: Events.ClientReady,
     once: true,
     async execute(client) {
+        const config = client.config;
+
         console.log(`Bot is ready! Logged in as ${client.user.tag}`);
 
         // Set bot activity
         client.user.setActivity('vocês seus cabrões!', { type: ActivityType.Watching });
 
         // Cache important channels
-        client.mainChannel = await client.channels.fetch(client.config.discord.channels.main);
-        client.adminChannel = await client.channels.fetch(client.config.discord.channels.admin);
+        client.mainChannel = await client.channels.fetch(config.discord.channels.main);
+        client.staffChannel = await client.channels.fetch(config.discord.channels.staff);
         client.logChannels = {
-            afk: await client.channels.fetch(client.config.discord.channels.log.afk),
-            ingame: await client.channels.fetch(client.config.discord.channels.log.ingame),
-            voice: await client.channels.fetch(client.config.discord.channels.log.voice)
+            afk: await client.channels.fetch(config.discord.channels.log.afk),
+            ingame: await client.channels.fetch(config.discord.channels.log.ingame),
+            voice: await client.channels.fetch(config.discord.channels.log.voice)
         };
 
         // Cache guild invites
-        const guild = await client.guilds.fetch(client.config.discord.guild);
+        const guild = await client.guilds.fetch(config.discord.guild);
         const invites = await guild.invites.fetch();
         
         for (const [code, invite] of invites) {
