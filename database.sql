@@ -35,15 +35,6 @@ CREATE TABLE `discord_counters` (
   `day` DATE NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `discord_afk` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `member_id` VARCHAR(20) NOT NULL,
-  `time_set` DATETIME NOT NULL,
-  `time_unset` DATETIME DEFAULT NULL,
-  `reason` TEXT,
-  FOREIGN KEY (`member_id`) REFERENCES `discord_members`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 -- Game Sessions
 CREATE TABLE `discord_games` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
