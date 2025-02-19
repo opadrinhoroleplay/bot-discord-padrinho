@@ -1,0 +1,87 @@
+Before diving into the best practices, please note that you may need to adapt the globs depending on your project's specific file structure and requirements.
+
+---
+name: discordjs-best-practices.mdc
+description: Best practices for using Discord.js in bot development
+globs: **/*.{ts,js}
+---
+
+- Use `Client` with `GatewayIntentBits` for specific intents
+- Implement error handling with `process.on('uncaughtException')`
+- Use `Collection` for storing and managing commands
+- Implement rate limiting to avoid API abuse
+- Use `MessageEmbed` for rich message formatting
+
+---
+name: typescript-best-practices.mdc
+description: TypeScript coding standards and type safety guidelines
+globs: **/*.{ts}
+---
+
+- Use strict null checks to prevent null/undefined errors
+- Prefer interfaces over types for object shapes
+- Use type guards and assertions for runtime type checking
+- Implement proper type inference to reduce explicit type annotations
+- Use enums for a set of named constants
+
+---
+name: mysql2-best-practices.mdc
+description: Best practices for using MySQL2 in Node.js applications
+globs: **/*.{ts,js}
+---
+
+- Use connection pooling to manage database connections efficiently
+- Implement prepared statements to prevent SQL injection
+- Use transactions for operations requiring atomicity
+- Handle errors properly using try-catch blocks
+- Close connections after use to prevent resource leaks
+
+---
+name: dotenv-best-practices.mdc
+description: Best practices for managing environment variables with dotenv
+globs: **/*.{ts,js}
+---
+
+- Keep `.env` file out of version control
+- Use different `.env` files for different environments (e.g., `.env.development`, `.env.production`)
+- Validate environment variables at application startup
+- Use `dotenv-safe` for additional security
+- Avoid hardcoding sensitive information in code
+
+---
+name: moment-best-practices.mdc
+description: Best practices for using Moment.js for date and time manipulation
+globs: **/*.{ts,js}
+---
+
+- Use `moment.tz()` for timezone-aware operations
+- Avoid mutating original dates; use `.clone()` instead
+- Use `moment.duration()` for time interval calculations
+- Implement proper locale handling with `moment.locale()`
+- Consider using `moment.utc()` for UTC-based operations
+
+---
+name: natural-best-practices.mdc
+description: Best practices for using Natural for natural language processing
+globs: **/*.{ts,js}
+---
+
+- Use `Tokenizer` for word tokenization
+- Implement `Stemmer` for word stemming
+- Use `WordNet` for semantic analysis and word relationships
+- Implement `BayesClassifier` for text classification tasks
+- Use `NGrams` for n-gram analysis in text processing
+
+---
+name: anthropic-sdk-best-practices.mdc
+description: Best practices for using Anthropic AI SDK
+globs: **/*.{ts,js}
+---
+
+- Use `Anthropic` client with proper API key management
+- Implement error handling for API requests
+- Use streaming for large responses to improve performance
+- Implement proper rate limiting to comply with API usage policies
+- Use `messages` parameter for multi-turn conversations
+
+The discord bot itself should always reply in European Portuguese.
