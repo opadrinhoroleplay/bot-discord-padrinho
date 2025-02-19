@@ -9,24 +9,6 @@ CREATE TABLE `discord_members` (
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Invite System
-CREATE TABLE `invites` (
-  `code` VARCHAR(10) PRIMARY KEY,
-  `inviter_id` VARCHAR(20) NOT NULL,
-  `inviter_slug` VARCHAR(255) NOT NULL,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (`inviter_id`) REFERENCES `discord_members`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE `invites_used` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `member_id` VARCHAR(20) NOT NULL,
-  `code` VARCHAR(10) NOT NULL,
-  `used_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (`member_id`) REFERENCES `discord_members`(`id`),
-  FOREIGN KEY (`code`) REFERENCES `invites`(`code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 -- Activity Tracking
 CREATE TABLE `discord_counters` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
