@@ -1,6 +1,5 @@
 const { Events } = require('discord.js');
 const MemberUtils = require('../utils/memberUtils');
-const AFKUtils = require('../utils/afkUtils');
 const BadWords = require('../utils/badWords');
 
 module.exports = {
@@ -28,19 +27,5 @@ module.exports = {
 
         // Update member's last active time
         await MemberUtils.setLastActive(message.member);
-
-        // Set member as not AFK if they send a message
-        if (AFKUtils.get(message.member)) await AFKUtils.set(message.member, false);
-
-        // Check for mentions of AFK members
-        const mentions = message.mentions.members;
-        if (mentions.size > 0) {
-            mentions.forEach(async (mentionedMember) => {
-                if (!mentionedMember || !mentionedMember.roles.cache.has(client.config.discord.roles.afk)) return;
-
-                const afkStatus = AFKUtils.get(mentionedMember);
-                if (afkStatus) await message.channel.send(`O membro **${mentionedMember.user.username}** está AFK. **Razão**: \`${afkStatus}\``);
-            });
-        }
     },
 }; 
