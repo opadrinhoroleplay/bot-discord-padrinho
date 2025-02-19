@@ -4,12 +4,12 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('delete')
 		.setDescription('Apaga mensagens deste canal')
-		.addIntegerOption(option => option.setName('numero').setDescription('Número de mensagens a apagar'))
+		.addIntegerOption(option => option.setName('quantidade').setDescription('Número de mensagens a apagar'))
 		.addStringOption(option => option.setName('id').setDescription('ID da mensagem até à qual queres apagar as mensagens'))
 		.addBooleanOption(option => option.setName('todas').setDescription('Apaga todas as mensagens deste canal (apenas o dono)')),
 
 	async execute(interaction) {
-		const amount      = interaction.options.getInteger('numero');
+		const amount      = interaction.options.getInteger('quantidade');
 		const messageId   = interaction.options.getString('id');
 		const allMessages = interaction.options.getBoolean('todas');
 
