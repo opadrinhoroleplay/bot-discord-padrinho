@@ -1,5 +1,6 @@
 {
   "name": "padrinho-bot",
+  "type": "module",
   "version": "1.0.0",
   "description": "Discord bot for managing a FiveM roleplay server",
   "main": "index.js",
@@ -20,6 +21,7 @@
     "@anthropic-ai/sdk": "^0.36.3",
     "discord.js": "^14.18.0",
     "dotenv": "^16.0.3",
+    "fast-xml-parser": "^5.0.5",
     "moment": "^2.29.4",
     "mysql2": "^3.3.1",
     "natural": "^8.0.1",

@@ -1,10 +1,11 @@
-const { Events, ActivityType } = require('discord.js');
-const MemberUtils = require('../utils/memberUtils');
-const FiveMUtils = require('../utils/fivemUtils');
+import { Events, ActivityType } from 'discord.js';
+import MemberUtils from '../utils/Member.js';
+import config from '../config.js';
 
-module.exports = {
+export default {
     name: Events.PresenceUpdate,
     async execute(oldPresence, newPresence, client) {
+
         if (newPresence.user.bot) return;
 
         const member = newPresence.member;
@@ -20,6 +21,7 @@ module.exports = {
                     // Optionally handle voice channel changes for AFK members
                 }
             } else if (newStatus === 'offline') {
+                // console.log('Calling setLastOnline with:', member);
                 await MemberUtils.setLastOnline(member);
             }
 
@@ -31,12 +33,12 @@ module.exports = {
 
         if (gameActivity) {
             // Check if playing on our server
-            if (gameActivity.name === client.config.server.name || 
-                gameActivity.state === client.config.server.name) {
+            if (gameActivity.name === config.server.name || gameActivity.state === config.server.name) {
+                // console.log('Calling setInGame(true) with:', member);
                 await MemberUtils.setInGame(member, true);
             } else {
                 // Check if playing on another roleplay server
-                const isRoleplayServer = FiveMUtils.isRoleplayServer([ gameActivity.name, gameActivity.state ]);
+                const isRoleplayServer = ['rp', 'roleplay', 'role-play', 'role play'].some(keyword => [gameActivity.name, gameActivity.state].join(' ').toLowerCase().includes(keyword));
                 if (isRoleplayServer) {
                     // Handle member playing on another RP server
                     // You might want to log this or take action
@@ -44,6 +46,7 @@ module.exports = {
             }
         } else {
             // Not playing any game
+            // console.log('Calling setInGame(false) with:', member);
             await MemberUtils.setInGame(member, false);
         }
     },

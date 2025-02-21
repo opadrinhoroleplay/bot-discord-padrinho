@@ -1,16 +1,19 @@
-exports.config = {
+export default {
     discord: {
         guild: process.env.GUILD_ID,
-        channels: {
+        category: {
+            voice: process.env.DISCORD_CATEGORY_VOICE
+        },
+        channel: {
             main: process.env.DISCORD_CHANNEL_MAIN,
+            tickets: process.env.DISCORD_CHANNEL_TICKETS,
             staff: process.env.DISCORD_CHANNEL_STAFF,
-            desenvolvimento: process.env.DISCORD_CHANNEL_DEV,
+            dev: process.env.DISCORD_CHANNEL_DEV,
             clickup: process.env.DISCORD_CHANNEL_CLICKUP,
-            github: process.env.DISCORD_CHANNEL_GITHUB,
+            changelog: process.env.DISCORD_CHANNEL_CHANGELOG,
             voice: {
-                admin: process.env.DISCORD_VOICE_ADMIN,
-                discussion: process.env.DISCORD_VOICE_DISCUSSION,
-                lobby: process.env.DISCORD_VOICE_LOBBY
+                lobby: process.env.DISCORD_VOICE_LOBBY,
+                staff: process.env.DISCORD_VOICE_STAFF
             },
             log: {
                 afk: process.env.DISCORD_LOG_AFK,
@@ -18,12 +21,11 @@ exports.config = {
                 voice: process.env.DISCORD_LOG_VOICE
             }
         },
-        roles: {
-            admin: process.env.DISCORD_ROLE_ADMIN,
+        role: {
+            staff: process.env.DISCORD_ROLE_STAFF,
             ingame: process.env.DISCORD_ROLE_INGAME,
-            afk: process.env.DISCORD_ROLE_AFK
         },
-        users: {
+        user: {
             owner: process.env.DISCORD_USER_OWNER,
             viruxe: process.env.DISCORD_USER_VIRUXE
         }
@@ -37,4 +39,4 @@ exports.config = {
     server: {
         name: process.env.SERVER_NAME
     }
-}; 
+};

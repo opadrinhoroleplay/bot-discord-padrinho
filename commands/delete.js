@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 
-module.exports = {
+export default {
 	data: new SlashCommandBuilder()
 		.setName('delete')
 		.setDescription('Apaga mensagens deste canal')
@@ -12,6 +12,7 @@ module.exports = {
 		const amount      = interaction.options.getInteger('quantidade');
 		const messageId   = interaction.options.getString('id');
 		const allMessages = interaction.options.getBoolean('todas');
+		let total = 0;
 
 		// Verifies if the user has ManageMessages permission
 		if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
@@ -28,21 +29,13 @@ module.exports = {
 			
 			await interaction.reply({ content: 'Vou começar a apagar todas as mensagens deste canal...', flags: MessageFlags.Ephemeral });
 
-			let total = 0;
-			let fetched;
+			let messages;
 
 			do {
-				fetched = await interaction.channel.messages.fetch({ limit: 100 });
+				messages = await interaction.channel.messages.fetch({ limit: 100 });
 
-				for (const msg of fetched.values()) {
-					try {
-						await msg.delete();
-						total++;
-					} catch (e) {
-						console.error('Erro ao apagar a mensagem:', e);
-					}
-				}
-			} while (fetched.size > 0);
+				for (const msg of messages.values()) await msg.delete().then(() => total++).catch(() => {});
+			} while (messages.size > 0);
 
 			await interaction.editReply({ content: `Apaguei ${total} mensagens.`, flags: MessageFlags.Ephemeral });
 			return;
@@ -58,7 +51,6 @@ module.exports = {
 
 		// Deletion by amount
 		if (amount) {
-			let count = 0;
 			let remaining = amount;
 
 			while (remaining > 0) {
@@ -70,7 +62,7 @@ module.exports = {
 				for (const msg of messages.values()) {
 					try {
 						await msg.delete();
-						count++;
+						total++;
 					} catch (e) {
 						console.error('Erro ao apagar a mensagem:', e);
 					}
@@ -78,7 +70,7 @@ module.exports = {
 				remaining -= messages.size;
 			}
 
-			await interaction.editReply({ content: `Apaguei ${count} mensagens.`, flags: MessageFlags.Ephemeral });
+			await interaction.editReply({ content: `Apaguei ${total} mensagens.`, flags: MessageFlags.Ephemeral });
 			return;
 		}
 
@@ -92,7 +84,6 @@ module.exports = {
 				return;
 			}
 
-			let count = 0;
 			let targetDeleted = false;
 			let lastId;
 
@@ -103,7 +94,7 @@ module.exports = {
 				for (const msg of fetched.values()) {
 					try {
 						await msg.delete();
-						count++;
+						total++;
 					} catch (e) {
 						console.error('Erro ao apagar a mensagem:', e);
 					}
@@ -124,16 +115,16 @@ module.exports = {
 			if (!targetDeleted) {
 				try {
 					await targetMessage.delete();
-					count++;
+					total++;
 				} catch (e) {
 					console.error('Erro ao apagar a mensagem alvo:', e);
 				}
 			}
 
-			await interaction.editReply({ content: `Apaguei ${count} mensagens até à mensagem especificada.`, flags: MessageFlags.Ephemeral });
+			await interaction.editReply({ content: `Apaguei ${total} mensagens até à mensagem especificada.`, flags: MessageFlags.Ephemeral });
 		}
 
 		// Tell staff what I did
-		await interaction.client.staffChannel.send(`${interaction.user} apagou ${count} mensagens no canal ${interaction.channel}.`);
+		await interaction.client.staffChannel.send(`${interaction.user} apagou ${total} mensagens no canal ${interaction.channel}.`);
 	}
 };
