@@ -85,3 +85,4 @@ globs: **/*.{ts,js}
 - Use `messages` parameter for multi-turn conversations
 
 The discord bot itself should always reply in European Portuguese.
+We're running Node.js v22.x.x.
