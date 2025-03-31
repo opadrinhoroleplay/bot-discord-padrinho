@@ -1,4 +1,5 @@
-import { readFile, writeFileSync } from 'fs';
+import { readFile } from 'fs/promises';
+import { writeFileSync } from 'fs';
 import { EmbedBuilder } from 'discord.js';
 
 export class CFXStatus {
