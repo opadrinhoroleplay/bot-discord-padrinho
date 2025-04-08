@@ -55,6 +55,9 @@ export default {
 			);
 
 		for (const [channelId, channel] of privateChannels) {
+			// Skip the lobby channel
+			if (channelId === config.discord.channel.voice.lobby) continue;
+
 			// Check if the channel has been empty for more than 24 hours
 			const channelCreatedAt = channel.createdAt;
 			const emptyDuration = Date.now() - channelCreatedAt.getTime();
