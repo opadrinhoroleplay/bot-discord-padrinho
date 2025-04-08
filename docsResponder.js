@@ -237,7 +237,7 @@ const setup = client => {
 			// Parse member tags and use their username instead of the tags
 			const content = message.content.replace(/<@!?(\d+)>/g, (match, userId) => {
 				const member = message.guild.members.cache.get(userId);
-				return member ? member.user.username : match;
+				return member ? member.displayName : match;
 			}).replace(/<@&(\d+)>/g, (match, roleId) => { // Replace role tags with the role name
 				const role = message.guild.roles.cache.get(roleId);
 				return role ? role.name : match;
