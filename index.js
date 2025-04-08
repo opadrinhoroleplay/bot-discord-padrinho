@@ -32,6 +32,8 @@ client.commands = new Collection();
 client.invitesUses = new Map();
 client.memberStatus = new Map();
 client.startTime = new Date();
+client.isLockedDown = false;
+client.originalStaffPermissions = null;
 
 (async () => { // We need to load a bunch of shit asynchronously
 	// Load Events
