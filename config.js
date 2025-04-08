@@ -23,6 +23,7 @@ export default {
         },
         role: {
             staff: process.env.DISCORD_ROLE_STAFF,
+            admin: process.env.DISCORD_ROLE_ADMIN,
             ingame: process.env.DISCORD_ROLE_INGAME,
         },
         user: {
