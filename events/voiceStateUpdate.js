@@ -2,6 +2,9 @@ import { Events, ChannelType } from 'discord.js';
 import Member from '../utils/Member.js';
 import config from '../config.js';
 
+const lobbyMessageTimestamps = new Map();
+const ONE_WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000;
+
 export default {
 	name: Events.VoiceStateUpdate,
 	async execute(oldState, newState, client) {
@@ -30,10 +33,17 @@ export default {
 						'Se quiseres um canal privado, para ti e para os teus amigos/equipa utiliza o comando `/voz`.'
 					);
 				} else if (newState.channelId === config.discord.channel.voice.lobby) {
-					await member.send(
-						'Olá! Cria um canal de voz privado para ti e para os teus amigos/equipa utilizando o comando `/voz`. ' +
-						'Não é suposto ficar aqui a conversar com os outros membros.'
-					);
+					const now = Date.now();
+					const userId = member.id;
+					const lastMessageTimestamp = lobbyMessageTimestamps.get(userId);
+
+					if (!lastMessageTimestamp || (now - lastMessageTimestamp > ONE_WEEK_IN_MS)) {
+						await member.send(
+							'Olá! Cria um canal de voz privado para ti e para os teus amigos/equipa utilizando o comando `/voz`. ' +
+							'Não é suposto ficar aqui a conversar com os outros membros.'
+						);
+						lobbyMessageTimestamps.set(userId, now); // Update the timestamp
+					}
 				}
 			} else if (newState.channelId === config.discord.channel.voice.admin) {
 				await client.staffChannel.send(`**${member.user.username}** entrou no canal de voz de Administração ${newState.channel}.`);
