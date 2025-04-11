@@ -164,7 +164,7 @@ const generateResponse = async (author, question) => {
 				fallback_links: {
 					guides_fallback: '/#guias',
 					portal: 'https://portal.opadrinhoroleplay.pt',
-					server_ip: 'http://cfx.re/join/e63a9p'
+					server_ip: 'https://cfx.re/join/9kaloa'
 				}
 			},
 			user_query: {
